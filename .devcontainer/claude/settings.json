@@ -1,0 +1,28 @@
+{
+  "autoUpdates": true,
+  "permissions": {
+    "allow": [
+      "Write",
+      "Edit",
+      "Bash(git:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(sed:*)",
+      "Bash(find:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(touch:*)",
+      "Bash(chmod:*)",
+      "Bash(npm:*)",
+      "Bash(node:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "WebFetch(domain:docs.github.com)",
+      "WebFetch(domain:docs.python.org)"
+    ],
+    "deny": []
+  }
+}
