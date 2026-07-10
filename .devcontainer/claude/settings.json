@@ -23,6 +23,24 @@
       "WebFetch(domain:docs.github.com)",
       "WebFetch(domain:docs.python.org)"
     ],
-    "deny": []
+    "deny": [],
+    "ask": [
+      "Bash(git push:*)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "network": {
+      "allowedDomains": [
+        "docs.github.com",
+        "docs.python.org"
+      ]
+    },
+    "credentials": {
+      "files": [
+        { "path": "~/.ssh", "mode": "deny" },
+        { "path": "~/.aws/credentials", "mode": "deny" }
+      ]
+    }
   }
 }

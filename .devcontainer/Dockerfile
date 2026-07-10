@@ -5,6 +5,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bash-completion \
+        bubblewrap \
         build-essential \
         ca-certificates \
         curl \
@@ -17,6 +18,7 @@ RUN apt-get update \
         lsb-release \
         procps \
         sed \
+        socat \
         unzip \
         xz-utils \
         zip \
