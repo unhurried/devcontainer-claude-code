@@ -21,8 +21,11 @@
     "ghcr.io/devcontainers/features/docker-in-docker:4": {
       "version": "latest",
       "moby": true
-    },
-    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+    }
+    // Claude Code is installed natively in postCreateCommand (see scripts/post-create.sh)
+    // instead of via this feature, because installing through the feature disables
+    // Claude Code's built-in auto-update mechanism.
+    // "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
   },
   "postCreateCommand": "bash .devcontainer/scripts/post-create.sh ${containerWorkspaceFolder}",
   "customizations": {
