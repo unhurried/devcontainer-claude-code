@@ -42,5 +42,18 @@
         { "path": "~/.aws/credentials", "mode": "deny" }
       ]
     }
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "permission_prompt|idle_prompt|agent_needs_input|agent_completed",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); title=\"Claude Code\"; body=$(jq -r '.message // \"Needs your attention\"' <<<\"$input\"); seq=$(printf '\\033]777;notify;%s;%s\\007' \"$title\" \"$body\"); jq -nc --arg seq \"$seq\" '{terminalSequence: $seq}'"
+          }
+        ]
+      }
+    ]
   }
 }

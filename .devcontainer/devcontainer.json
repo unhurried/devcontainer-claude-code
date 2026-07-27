@@ -33,7 +33,14 @@
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
         "security.workspace.trust.enabled": false
-      }
+      },
+      "extensions": [
+        // VS Code's integrated terminal doesn't natively interpret OSC 9 / OSC 777
+        // notification escape sequences (unlike iTerm2/Kitty/Ghostty), so the
+        // Notification hook's terminalSequence output is silently dropped without
+        // this extension to convert it into an OS/VS Code notification.
+        "wenbopan.vscode-terminal-osc-notifier"
+      ]
     }
   }
 }
