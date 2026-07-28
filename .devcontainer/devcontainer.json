@@ -5,6 +5,18 @@
     "context": ".."
   },
   "remoteUser": "vscode",
+  "runArgs": [
+    // Required by init-firewall.sh to manage iptables/ipset rules.
+    "--cap-add=NET_ADMIN",
+    "--cap-add=NET_RAW"
+  ],
+  "mounts": [
+    // Persist Claude Code session/auth state and shell history across
+    // container rebuilds (postCreateCommand still seeds settings.json /
+    // claude.json into the volume on first run, see scripts/post-create.sh).
+    "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
+    "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume"
+  ],
   "features": {
     "ghcr.io/devcontainers/features/common-utils:2": {
       "upgradePackages": true,
@@ -28,6 +40,8 @@
     // "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
   },
   "postCreateCommand": "bash .devcontainer/scripts/post-create.sh ${containerWorkspaceFolder}",
+  "postStartCommand": "sudo /usr/local/bin/init-firewall.sh",
+  "waitFor": "postStartCommand",
   "customizations": {
     "vscode": {
       "settings": {
