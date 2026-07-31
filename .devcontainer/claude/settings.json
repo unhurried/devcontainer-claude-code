@@ -31,10 +31,6 @@
   },
   "sandbox": {
     "enabled": true,
-    // Use iptables instead of sandbox network isolation due to:
-    // - Sandbox network isolation doen't work in devcontaier.
-    // - Sandbox network isolation only work for Bash commands.
-    // "network": {},
     "credentials": {
       "files": [
         { "path": "~/.ssh", "mode": "deny" },
