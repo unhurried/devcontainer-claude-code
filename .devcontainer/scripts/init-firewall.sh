@@ -71,6 +71,7 @@ for domain in \
     "pypi.org" \
     "files.pythonhosted.org" \
     "claude.ai" \
+    "downloads.claude.ai" \
     "api.anthropic.com" \
     "sentry.io" \
     "statsig.anthropic.com" \
