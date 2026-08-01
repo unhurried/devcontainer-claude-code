@@ -16,6 +16,20 @@ RUN apt-get update \
         dnsutils \
         aggregate \
         jq \
+        ca-certificates \
+        gnupg2 \
+        less \
+        nano \
+        vim-tiny \
+        unzip \
+        zip \
+        bzip2 \
+        xz-utils \
+        tree \
+        htop \
+        rsync \
+        man-db \
+        bash-completion \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

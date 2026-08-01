@@ -18,11 +18,6 @@
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume"
   ],
   "features": {
-    "ghcr.io/devcontainers/features/common-utils:2": {
-      "upgradePackages": true,
-      "installZsh": false,
-      "username": "vscode"
-    },
     "ghcr.io/devcontainers/features/node:2": {
       "version": "latest",
       "nodeGypDependencies": true
