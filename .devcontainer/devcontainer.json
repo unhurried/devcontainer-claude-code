@@ -12,8 +12,8 @@
   ],
   "mounts": [
     // Persist Claude Code session/auth state and shell history across
-    // container rebuilds (postCreateCommand still seeds settings.json /
-    // claude.json into the volume on first run, see scripts/post-create.sh).
+    // container rebuilds (postCreateCommand still seeds claude.json into
+    // the volume on first run, see scripts/post-create.sh).
     "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume"
   ],
