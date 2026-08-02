@@ -83,7 +83,7 @@ for domain in \
     "auth.docker.io" \
     "production.cloudflare.docker.com"; do
     echo "Resolving $domain..."
-    ips=$(dig +noall +answer A "$domain" | awk '$4 == "A" {print $5}')
+    ips=$(dig +noall +answer A "$domain" 2>/dev/null | awk '$4 == "A" {print $5}' || true)
     if [ -z "$ips" ]; then
         echo "WARNING: Failed to resolve $domain, skipping"
         continue
