@@ -10,4 +10,3 @@ curl -fsSL https://claude.ai/install.sh | bash
 
 install -d -m 0755 "${claude_home}"
 install -m 0644 "${template_dir}/claude/claude.json" "${HOME}/.claude.json"
-install -m 0644 "${template_dir}/.npmrc" "${HOME}/.npmrc"
