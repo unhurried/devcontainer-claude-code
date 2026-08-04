@@ -167,11 +167,14 @@ ENV DEVCONTAINER=true
 # USER node
 #
 # Project-specific: same idea (let the "vscode" user run the firewall script
-# passwordlessly via devcontainer.json's postStartCommand, without granting broader
-# sudo access), adapted for the "vscode" user and this repo's .devcontainer/scripts/
-# layout (hence the ".devcontainer" prefix — the build context is the repo root, see
-# devcontainer.json).
+# passwordlessly via devcontainer.json's postStartCommand), adapted for the "vscode"
+# user and this repo's .devcontainer/scripts/ layout (hence the ".devcontainer" prefix
+# — the build context is the repo root, see devcontainer.json). Unlike the official
+# sample, this also removes /etc/sudoers.d/vscode — the base image's own unrestricted
+# "vscode ALL=(root) NOPASSWD:ALL" rule — so the firewall script is the only thing
+# vscode can run passwordlessly as root, instead of everything.
 COPY .devcontainer/scripts/init-firewall.sh /usr/local/bin/init-firewall.sh
 RUN chmod +x /usr/local/bin/init-firewall.sh \
+    && rm -f /etc/sudoers.d/vscode \
     && echo "vscode ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/vscode-firewall \
     && chmod 0440 /etc/sudoers.d/vscode-firewall
