@@ -1,20 +1,56 @@
 {
+  // ANTHROPIC OFFICIAL SAMPLE (https://github.com/anthropics/claude-code/blob/main/.devcontainer/devcontainer.json):
+  // "name": "Claude Code Sandbox",
+  // Project-specific: name the container after this repo instead.
   "name": "claude-code-devcontainer",
+
+  // ANTHROPIC OFFICIAL SAMPLE:
+  // "build": {
+  //   "dockerfile": "Dockerfile",
+  //   "args": {
+  //     "TZ": "${localEnv:TZ:America/Los_Angeles}",
+  //     "CLAUDE_CODE_VERSION": "latest",
+  //     "GIT_DELTA_VERSION": "0.18.2",
+  //     "ZSH_IN_DOCKER_VERSION": "1.2.0"
+  //   }
+  // },
+  // Project-specific: base image (mcr.microsoft.com/devcontainers/base:ubuntu-24.04),
+  // Node.js/Python/Docker, and Claude Code itself are all handled by the Dockerfile +
+  // Dev Container Features below instead of build args, so none are needed here.
+  // "context" is the repo root (not the default ".devcontainer") because the Dockerfile
+  // COPYs files from .devcontainer/scripts/, which lives one level up from itself.
   "build": {
     "dockerfile": "Dockerfile",
     "context": ".."
   },
+
+  // ANTHROPIC OFFICIAL SAMPLE: "remoteUser": "node"
+  // Project-specific: the ubuntu-24.04 base devcontainer image's non-root user is "vscode".
   "remoteUser": "vscode",
+
+  // ANTHROPIC OFFICIAL SAMPLE (unchanged):
   "runArgs": [
     // Required by init-firewall.sh to manage iptables/ipset rules.
     "--cap-add=NET_ADMIN",
     "--cap-add=NET_RAW"
   ],
+
+  // ANTHROPIC OFFICIAL SAMPLE:
+  // "mounts": [
+  //   "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
+  //   "source=claude-code-config-${devcontainerId},target=/home/node/.claude,type=volume"
+  // ],
+  // Project-specific: same idea (persist Claude Code session/auth state and shell
+  // history across rebuilds), with paths updated for the "vscode" user.
   "mounts": [
-    // Persist Claude Code session/auth state and shell history across container rebuilds.
     "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume"
   ],
+
+  // Project-specific addition (no equivalent in the official sample, which installs
+  // everything by hand in the Dockerfile): install Node.js, Python, and
+  // Docker-in-Docker via Dev Container Features, and Claude Code via its official
+  // feature instead of `npm install -g @anthropic-ai/claude-code`.
   "features": {
     "ghcr.io/devcontainers/features/node:2": {
       "version": "latest",
@@ -29,22 +65,74 @@
     },
     "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
   },
+
+  // Project-specific addition (no equivalent in the official sample): run repo-specific
+  // setup after the container is created.
   "postCreateCommand": "bash .devcontainer/scripts/post-create.sh ${containerWorkspaceFolder}",
+
+  // ANTHROPIC OFFICIAL SAMPLE (unchanged):
   "postStartCommand": "sudo /usr/local/bin/init-firewall.sh",
   "waitFor": "postStartCommand",
+
+  // ANTHROPIC OFFICIAL SAMPLE:
+  // "containerEnv": {
+  //   "NODE_OPTIONS": "--max-old-space-size=4096",
+  //   "CLAUDE_CONFIG_DIR": "/home/node/.claude",
+  //   "POWERLEVEL9K_DISABLE_GITSTATUS": "true"
+  // },
+  // "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
+  // "workspaceFolder": "/workspace",
+  // Project-specific: none of these are needed here — no Node build large enough to
+  // need extra heap, no zsh/powerlevel10k theme (see "settings" below), and the
+  // workspace uses the devcontainer default mount/folder instead of a custom path.
+
   "customizations": {
     "vscode": {
-      "settings": {
-        "terminal.integrated.defaultProfile.linux": "bash",
-        "security.workspace.trust.enabled": false
-      },
+      // ANTHROPIC OFFICIAL SAMPLE:
+      // "extensions": [
+      //   "anthropic.claude-code",
+      //   "dbaeumer.vscode-eslint",
+      //   "esbenp.prettier-vscode",
+      //   "eamodio.gitlens"
+      // ],
+      // Project-specific: the Claude Code Dev Container Feature already installs the
+      // "anthropic.claude-code" extension automatically, and this repo has no JS/TS
+      // lint/format toolchain to back eslint/prettier, nor a particular need for
+      // gitlens. Instead, install a plugin that turns on terminal notifications.
       "extensions": [
         // VS Code's integrated terminal doesn't natively interpret OSC 9 / OSC 777
         // notification escape sequences (unlike iTerm2/Kitty/Ghostty), so the
         // Notification hook's terminalSequence output is silently dropped without
         // this extension to convert it into an OS/VS Code notification.
         "wenbopan.vscode-terminal-osc-notifier"
-      ]
+      ],
+
+      // ANTHROPIC OFFICIAL SAMPLE:
+      // "settings": {
+      //   "editor.formatOnSave": true,
+      //   "editor.defaultFormatter": "esbenp.prettier-vscode",
+      //   "editor.codeActionsOnSave": {
+      //     "source.fixAll.eslint": "explicit"
+      //   },
+      //   "terminal.integrated.defaultProfile.linux": "zsh",
+      //   "terminal.integrated.profiles.linux": {
+      //     "bash": {
+      //       "path": "bash",
+      //       "icon": "terminal-bash"
+      //     },
+      //     "zsh": {
+      //       "path": "zsh"
+      //     }
+      //   }
+      // },
+      // Project-specific: no eslint/prettier toolchain in this repo, and the shell is
+      // Bash (with a shortened prompt set in the Dockerfile) rather than zsh. Workspace
+      // trust prompts are also disabled since the dev container itself is the trust
+      // boundary.
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "security.workspace.trust.enabled": false
+      }
     }
   }
 }
