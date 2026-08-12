@@ -1,0 +1,22 @@
+# Extra domains init-firewall.sh allows outbound (on top of GitHub's IP ranges
+# and the Docker host/DNS exceptions it handles itself).
+#
+# One domain per line; blank/# lines ignored. Only letters, digits, dots and
+# hyphens are accepted.
+#
+# Installed to /usr/local/etc/ by onCreateCommand, so edits need a rebuild.
+
+registry.npmjs.org
+pypi.org
+files.pythonhosted.org
+claude.ai
+downloads.claude.ai
+api.anthropic.com
+sentry.io
+statsig.com
+marketplace.visualstudio.com
+vscode.blob.core.windows.net
+update.code.visualstudio.com
+registry-1.docker.io
+auth.docker.io
+production.cloudflare.docker.com

@@ -63,25 +63,31 @@ while read -r cidr; do
     ipset add allowed-domains "$cidr" -exist
 done < <(echo "$gh_ranges" | jq -r '(.web + .api + .git)[]' | aggregate -q)
 
-# Resolve and add other allowed domains.
-# Extend this list if the toolchain in Dockerfile/devcontainer.json needs to
-# reach additional package registries or services.
-for domain in \
-    "registry.npmjs.org" \
-    "pypi.org" \
-    "files.pythonhosted.org" \
-    "claude.ai" \
-    "downloads.claude.ai" \
-    "api.anthropic.com" \
-    "sentry.io" \
-    "statsig.anthropic.com" \
-    "statsig.com" \
-    "marketplace.visualstudio.com" \
-    "vscode.blob.core.windows.net" \
-    "update.code.visualstudio.com" \
-    "registry-1.docker.io" \
-    "auth.docker.io" \
-    "production.cloudflare.docker.com"; do
+# Resolve and add other allowed domains, read from a plain-text list
+# installed outside the workspace bind mount (see devcontainer.json's
+# onCreateCommand) rather than from the workspace copy directly. That keeps
+# the same trust boundary as this script itself: editing the workspace copy
+# only takes effect after a container rebuild, not on the next
+# postStartCommand run, so a process running inside the container can't
+# widen its own egress allowlist just by writing to the file.
+#
+# To add a domain, edit .devcontainer/scripts/allowed-domains.txt and rebuild
+# the container.
+ALLOWED_DOMAINS_FILE=/usr/local/etc/allowed-domains.txt
+if [ ! -f "$ALLOWED_DOMAINS_FILE" ]; then
+    echo "ERROR: Allowed domains file not found: $ALLOWED_DOMAINS_FILE"
+    exit 1
+fi
+
+while read -r domain; do
+    # Skip blank lines and comments.
+    [[ -z "$domain" || "$domain" == \#* ]] && continue
+    # Reject anything that isn't a plausible hostname before it's resolved.
+    if [[ ! "$domain" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]]; then
+        echo "ERROR: Invalid domain in $ALLOWED_DOMAINS_FILE: $domain"
+        exit 1
+    fi
+
     echo "Resolving $domain..."
     ips=$(dig +noall +answer A "$domain" 2>/dev/null | awk '$4 == "A" {print $5}' || true)
     if [ -z "$ips" ]; then
@@ -97,7 +103,7 @@ for domain in \
         echo "Adding $ip for $domain"
         ipset add allowed-domains "$ip" -exist
     done < <(echo "$ips")
-done
+done < "$ALLOWED_DOMAINS_FILE"
 
 # Get host IP from default route
 HOST_IP=$(ip route | grep default | cut -d" " -f3)
