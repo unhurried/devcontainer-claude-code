@@ -19,9 +19,9 @@
     "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume"
   ],
-  // Set INIT_FIREWALL=false on the host to disable the egress firewall. Defaults to true.
+  // Set INIT_FIREWALL=true on the host to enable the egress firewall. Defaults to false.
   "containerEnv": {
-    "INIT_FIREWALL": "${localEnv:INIT_FIREWALL:true}"
+    "INIT_FIREWALL": "${localEnv:INIT_FIREWALL:false}"
   },
   "features": {
     "ghcr.io/devcontainers/features/node:2": {
