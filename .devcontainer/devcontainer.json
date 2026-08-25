@@ -12,7 +12,9 @@
     // Required by init-firewall.sh to manage iptables/ipset. Harmless no-op when
     // INIT_FIREWALL=false.
     "--cap-add=NET_ADMIN",
-    "--cap-add=NET_RAW"
+    "--cap-add=NET_RAW",
+    // Chromium (Playwright MCP) crashes with the default 64MB /dev/shm.
+    "--shm-size=1g"
   ],
   // Persist Claude Code session/auth state and shell history across rebuilds.
   "mounts": [

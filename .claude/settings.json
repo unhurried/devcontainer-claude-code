@@ -1,5 +1,6 @@
 {
   "autoUpdates": true,
+  "enabledMcpjsonServers": ["playwright"],
   "permissions": {
     "allow": [
       "Write",

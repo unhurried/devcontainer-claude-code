@@ -20,3 +20,8 @@ update.code.visualstudio.com
 registry-1.docker.io
 auth.docker.io
 production.cloudflare.docker.com
+
+# Playwright browser downloads (post-create.sh)
+cdn.playwright.dev
+playwright.download.prss.microsoft.com
+storage.googleapis.com
