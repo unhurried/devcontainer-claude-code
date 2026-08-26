@@ -4,7 +4,10 @@
 # One domain per line; blank/# lines ignored. Only letters, digits, dots and
 # hyphens are accepted.
 #
-# Installed to /usr/local/etc/ by onCreateCommand, so edits need a rebuild.
+# Baked into the image at /usr/local/etc/ by the Dockerfile, so edits need a rebuild.
+#
+# Names are resolved exactly as written -- there is no wildcard matching, so
+# every subdomain that must be reachable needs its own line.
 
 registry.npmjs.org
 pypi.org
@@ -14,6 +17,7 @@ downloads.claude.ai
 api.anthropic.com
 sentry.io
 statsig.com
+statsig.anthropic.com
 marketplace.visualstudio.com
 vscode.blob.core.windows.net
 update.code.visualstudio.com

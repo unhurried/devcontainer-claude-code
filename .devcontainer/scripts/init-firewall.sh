@@ -2,6 +2,32 @@
 set -euo pipefail  # Exit on error, undefined vars, and pipeline failures
 IFS=$'\n\t'       # Stricter word splitting
 
+# Fail closed, not open. Most of this script runs while egress is still
+# unrestricted (fetching GitHub's ranges, resolving the allowlist), and the
+# DROP policies are only set near the end. Without this trap, an early failure
+# -- an unreachable api.github.com, a DNS hiccup, a missing host route -- would
+# leave the just-flushed tables wide open on a fresh container, while the user
+# is told the firewall is on. Any non-zero exit now clamps egress to deny-all
+# instead. The exit status is preserved, so postStartCommand still fails loudly.
+deny_all_egress() {
+    iptables -F 2>/dev/null || true
+    iptables -P INPUT DROP 2>/dev/null || true
+    iptables -P FORWARD DROP 2>/dev/null || true
+    iptables -P OUTPUT DROP 2>/dev/null || true
+    # Loopback stays up so local tooling doesn't hang on itself.
+    iptables -A INPUT -i lo -j ACCEPT 2>/dev/null || true
+    iptables -A OUTPUT -o lo -j ACCEPT 2>/dev/null || true
+}
+
+on_exit() {
+    local status=$?
+    [ "$status" -eq 0 ] && return 0
+    echo "ERROR: firewall setup failed (exit $status) - falling back to deny-all egress" >&2
+    deny_all_egress
+    echo "Egress is now deny-all. Fix the error above and re-run: sudo /usr/local/bin/devcontainer-init-firewall.sh" >&2
+}
+trap on_exit EXIT
+
 # 1. Extract Docker DNS info BEFORE any flushing
 DOCKER_DNS_RULES=$(iptables-save -t nat | grep "127\.0\.0\.11" || true)
 
@@ -63,12 +89,11 @@ while read -r cidr; do
     ipset add allowed-domains "$cidr" -exist
 done < <(echo "$gh_ranges" | jq -r '(.web + .api + .git)[]' | aggregate -q)
 
-# Resolve and add other allowed domains, read from a plain-text list
-# installed outside the workspace bind mount (see devcontainer.json's
-# onCreateCommand) rather than from the workspace copy directly. That keeps
-# the same trust boundary as this script itself: editing the workspace copy
-# only takes effect after a container rebuild, not on the next
-# postStartCommand run, so a process running inside the container can't
+# Resolve and add other allowed domains, read from a plain-text list baked
+# into the image (see the Dockerfile) rather than from the workspace copy
+# directly. That keeps the same trust boundary as this script itself: editing
+# the workspace copy only takes effect after a container rebuild, not on the
+# next postStartCommand run, so a process running inside the container can't
 # widen its own egress allowlist just by writing to the file.
 #
 # To add a domain, edit .devcontainer/scripts/allowed-domains.txt and rebuild

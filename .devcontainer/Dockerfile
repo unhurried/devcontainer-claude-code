@@ -81,10 +81,24 @@ RUN mkdir -p /home/vscode/.claude \
 # Help Claude Code orient that it's running in a devcontainer
 ENV DEVCONTAINER=true
 
-# The claude-code feature installs its own init-firewall.sh after this Dockerfile builds, so
-# we can't COPY our version here without it being overwritten. Instead, onCreateCommand in
-# devcontainer.json replaces the script's contents post-install. This RUN just narrows sudo
-# access to that one script, revoking the base image's default passwordless-sudo-for-everything.
+# Egress firewall, baked into the image rather than installed at container creation.
+#
+# The claude-code feature installs its own /usr/local/bin/init-firewall.sh after this
+# Dockerfile builds, so that path can't hold our version. Rather than overwriting it
+# afterwards -- which the vscode user has no sudo rights to do anyway -- we install ours
+# under a distinct name and simply leave the feature's copy unused and unreachable.
+#
+# Baking it in also keeps the trust boundary intact: both files live outside the workspace
+# bind mount, so a process in the container can't widen its own egress allowlist. Editing
+# either one requires a rebuild.
+COPY .devcontainer/scripts/init-firewall.sh /usr/local/bin/devcontainer-init-firewall.sh
+COPY .devcontainer/scripts/allowed-domains.txt /usr/local/etc/allowed-domains.txt
+RUN chmod 0755 /usr/local/bin/devcontainer-init-firewall.sh \
+    && chmod 0644 /usr/local/etc/allowed-domains.txt
+
+# Narrow sudo to just that script, revoking the base image's default
+# passwordless-sudo-for-everything. Note this deliberately does NOT grant the feature's
+# init-firewall.sh, whose allowlist is narrower and which drops the Docker DNS rules.
 RUN rm -f /etc/sudoers.d/vscode \
-    && echo "vscode ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/vscode-firewall \
+    && echo "vscode ALL=(root) NOPASSWD: /usr/local/bin/devcontainer-init-firewall.sh" > /etc/sudoers.d/vscode-firewall \
     && chmod 0440 /etc/sudoers.d/vscode-firewall

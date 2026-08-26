@@ -10,7 +10,8 @@ Devcontainer configuration for Claude Code
 On first creation, the Node.js / Python / Docker-in-Docker / Claude Code features are set up. The egress firewall, which only allows traffic to GitHub's published IP ranges plus the domains listed in `.devcontainer/scripts/allowed-domains.txt`, is disabled by default.
 
 - To enable the firewall, set `INIT_FIREWALL=true` on the host before opening/rebuilding the container. Once enabled, it is (re-)applied on every container start.
-- To add or change allowed domains, edit `.devcontainer/scripts/allowed-domains.txt` and rebuild the container. Changes only take effect after a rebuild, since the file is installed outside the workspace by `onCreateCommand`.
+- To add or change allowed domains, edit `.devcontainer/scripts/allowed-domains.txt` and rebuild the container. Both the script and the allowlist are baked into the image (see `Dockerfile`) and read from outside the workspace mount, so edits only take effect after a rebuild — a process in the container cannot widen its own egress allowlist. Domains are matched exactly, so each subdomain needs its own line.
+- If setup fails partway through — GitHub's IP ranges unreachable, DNS trouble — the script falls back to deny-all egress rather than leaving the flushed tables wide open, and reports the failure.
 
 ## Browser automation (Playwright MCP)
 

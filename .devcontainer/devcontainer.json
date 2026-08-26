@@ -1,5 +1,5 @@
 {
-  "name": "devcontainer-claude-code-tmp",
+  "name": "devcontainer-claude-code",
   "build": {
     "dockerfile": "Dockerfile",
     "context": "..",
@@ -39,13 +39,11 @@
     },
     "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
   },
-  // Runs once at container creation, after all features finish installing. Installs our
-  // init-firewall.sh and allowed-domains.txt outside the workspace mount, so
-  // postStartCommand (which runs on every start) always uses these versions — workspace
-  // edits only take effect after a rebuild.
-  "onCreateCommand": "if [ \"$INIT_FIREWALL\" = true ]; then sudo install -m 0755 ${containerWorkspaceFolder}/.devcontainer/scripts/init-firewall.sh /usr/local/bin/init-firewall.sh && sudo install -m 0644 ${containerWorkspaceFolder}/.devcontainer/scripts/allowed-domains.txt /usr/local/etc/allowed-domains.txt; else echo 'INIT_FIREWALL=false: leaving the feature-provided init-firewall.sh untouched and unused'; fi",
   "postCreateCommand": "bash .devcontainer/scripts/post-create.sh ${containerWorkspaceFolder}",
-  "postStartCommand": "if [ \"$INIT_FIREWALL\" = true ]; then sudo /usr/local/bin/init-firewall.sh; else echo 'INIT_FIREWALL=false: skipping egress firewall setup'; fi",
+  // The script and its allowlist are baked into the image (see Dockerfile), so this always
+  // runs our version — never the feature-provided init-firewall.sh — and workspace edits
+  // only take effect after a rebuild. INIT_FIREWALL gates execution only.
+  "postStartCommand": "if [ \"$INIT_FIREWALL\" = true ]; then sudo /usr/local/bin/devcontainer-init-firewall.sh; else echo 'INIT_FIREWALL=false: skipping egress firewall setup'; fi",
   "waitFor": "postStartCommand",
   "customizations": {
     "vscode": {
