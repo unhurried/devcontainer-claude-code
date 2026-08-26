@@ -1,6 +1,4 @@
 {
-  "autoUpdates": true,
-  "enabledMcpjsonServers": ["playwright"],
   "permissions": {
     "allow": [
       "Write",
@@ -30,15 +28,9 @@
       "Bash(sudo:*)"
     ]
   },
-  "sandbox": {
-    "enabled": true,
-    "credentials": {
-      "files": [
-        { "path": "~/.ssh", "mode": "deny" },
-        { "path": "~/.aws/credentials", "mode": "deny" }
-      ]
-    }
-  },
+  "enabledMcpjsonServers": [
+    "playwright"
+  ],
   "hooks": {
     "Notification": [
       {
@@ -61,5 +53,24 @@
         ]
       }
     ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "credentials": {
+      "files": [
+        {
+          "path": "~/.ssh",
+          "mode": "deny"
+        },
+        {
+          "path": "~/.aws/credentials",
+          "mode": "deny"
+        }
+      ]
+    }
+  },
+  "autoUpdates": true,
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true
   }
 }
