@@ -91,8 +91,8 @@ ENV DEVCONTAINER=true
 # Baking it in also keeps the trust boundary intact: both files live outside the workspace
 # bind mount, so a process in the container can't widen its own egress allowlist. Editing
 # either one requires a rebuild.
-COPY .devcontainer/scripts/init-firewall.sh /usr/local/bin/devcontainer-init-firewall.sh
-COPY .devcontainer/scripts/allowed-domains.txt /usr/local/etc/allowed-domains.txt
+COPY scripts/init-firewall.sh /usr/local/bin/devcontainer-init-firewall.sh
+COPY scripts/allowed-domains.txt /usr/local/etc/allowed-domains.txt
 RUN chmod 0755 /usr/local/bin/devcontainer-init-firewall.sh \
     && chmod 0644 /usr/local/etc/allowed-domains.txt
 

@@ -2,7 +2,6 @@
   "name": "devcontainer-claude-code",
   "build": {
     "dockerfile": "Dockerfile",
-    "context": "..",
     "args": {
       "progress": "plain"
     }
