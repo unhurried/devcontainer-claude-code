@@ -1,6 +1,7 @@
 ---
 name: commit-message
 description: Formatting rules for git commit messages in this repo. Use whenever creating a git commit (git commit) in this project, so the message format doesn't need to be specified each time.
+model: sonnet
 ---
 
 # Commit message format
