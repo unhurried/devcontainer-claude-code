@@ -4,10 +4,14 @@ SHELL ["bash", "-c"]
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# bubblewrap: used by Claude Code's own sandboxing.
+# bubblewrap and socat: both required by Claude Code's own sandboxing. bubblewrap
+# builds the namespace, socat proxies the sandboxed process's network out through it.
+# Without socat, Claude Code reports "sandbox is enabled but dependencies are missing"
+# and falls back to running commands unsandboxed.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bubblewrap \
+        socat \
         build-essential \
         file \
         sed \
