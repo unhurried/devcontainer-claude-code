@@ -16,13 +16,24 @@
     "--shm-size=1g"
   ],
   // Persist Claude Code session/auth state and shell history across rebuilds.
+  // The volume names are keyed to ${devcontainerId}, which is derived from this
+  // workspace and stays stable across rebuilds, so the same volumes are re-attached.
   "mounts": [
     "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume"
   ],
-  // Set INIT_FIREWALL=true on the host to enable the egress firewall. Defaults to false.
   "containerEnv": {
-    "INIT_FIREWALL": "${localEnv:INIT_FIREWALL:false}"
+    // Set INIT_FIREWALL=true on the host to enable the egress firewall. Defaults to false.
+    "INIT_FIREWALL": "${localEnv:INIT_FIREWALL:false}",
+    // Claude Code resolves its global config file as
+    // ${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json -- the file holding the logged-in
+    // account, onboarding state and per-workspace trust flags. Left at the default it
+    // lands at ~/.claude.json, outside the volume above, so a rebuild kept the
+    // credentials but dropped the account binding and forced a fresh login. Pointing
+    // CLAUDE_CONFIG_DIR at the already-mounted ~/.claude moves that file (and
+    // projects/, sessions/, history) inside the volume. The path is identical to the
+    // default config dir, so nothing else about the layout changes.
+    "CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
   },
   "features": {
     "ghcr.io/devcontainers/features/node:2": {

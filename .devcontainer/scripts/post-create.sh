@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Fold a stray ~/.claude.json into the persisted config volume. CLAUDE_CONFIG_DIR
+# (devcontainer.json) makes ~/.claude/.claude.json the real location; this only matters
+# for a container created before that setting existed, or one where something wrote the
+# file at its default path. Never clobber the volume's copy -- that one is the live state.
+LEGACY_CONFIG="$HOME/.claude.json"
+PERSISTED_CONFIG="$HOME/.claude/.claude.json"
+if [ -f "$LEGACY_CONFIG" ] && [ ! -f "$PERSISTED_CONFIG" ]; then
+  echo "Migrating $LEGACY_CONFIG into the persisted config volume"
+  mv "$LEGACY_CONFIG" "$PERSISTED_CONFIG"
+fi
+
 # Install the Playwright MCP server and its browser (see .mcp.json). This runs
 # here rather than in the Dockerfile because npm only exists after the Node
 # devcontainer feature installs, which happens once the image is already built.
