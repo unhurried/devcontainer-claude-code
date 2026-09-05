@@ -4,10 +4,8 @@ SHELL ["bash", "-c"]
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# bubblewrap and socat: both required by Claude Code's own sandboxing. bubblewrap
-# builds the namespace, socat proxies the sandboxed process's network out through it.
-# Without socat, Claude Code reports "sandbox is enabled but dependencies are missing"
-# and falls back to running commands unsandboxed.
+# bubblewrap builds the namespace for Claude Code's sandbox, socat proxies its
+# network out. Without either, Claude Code runs commands unsandboxed.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bubblewrap \
@@ -36,11 +34,9 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Chromium runtime dependencies, for the Playwright MCP server (see .mcp.json).
-# Installed from apt here rather than via `playwright install --with-deps`
-# because the vscode user has no general passwordless sudo (see below). The list
-# mirrors Playwright's Ubuntu 24.04 dependency set; note the `t64` suffixes
-# noble introduced. fonts-noto-cjk keeps Japanese pages from rendering as tofu.
+# Chromium runtime deps for the Playwright MCP server (see .mcp.json). From apt,
+# not `playwright install --with-deps`, because vscode has no general sudo (see
+# below). Mirrors Playwright's Ubuntu 24.04 list, whose `t64` suffixes are noble's.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         libnss3 \
@@ -77,32 +73,26 @@ RUN mkdir -p /commandhistory \
     && chown -R vscode:vscode /commandhistory \
     && echo "export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" >> /home/vscode/.bashrc
 
-# Pre-create and chown ~/.claude so the config volume mount (devcontainer.json)
-# is seeded with vscode ownership instead of being auto-created root-owned.
+# Seed ~/.claude as vscode so the config volume (devcontainer.json) isn't
+# auto-created root-owned.
 RUN mkdir -p /home/vscode/.claude \
     && chown -R vscode:vscode /home/vscode/.claude
 
 # Help Claude Code orient that it's running in a devcontainer
 ENV DEVCONTAINER=true
 
-# Egress firewall, baked into the image rather than installed at container creation.
-#
-# The claude-code feature installs its own /usr/local/bin/init-firewall.sh after this
-# Dockerfile builds, so that path can't hold our version. Rather than overwriting it
-# afterwards -- which the vscode user has no sudo rights to do anyway -- we install ours
-# under a distinct name and simply leave the feature's copy unused and unreachable.
-#
-# Baking it in also keeps the trust boundary intact: both files live outside the workspace
-# bind mount, so a process in the container can't widen its own egress allowlist. Editing
-# either one requires a rebuild.
+# Egress firewall, baked into the image. Under a distinct name because the
+# claude-code feature later writes its own /usr/local/bin/init-firewall.sh, which
+# we leave unused. Living outside the workspace mount also means a process in the
+# container can't widen its own allowlist -- edits need a rebuild.
 COPY scripts/init-firewall.sh /usr/local/bin/devcontainer-init-firewall.sh
 COPY scripts/allowed-domains.txt /usr/local/etc/allowed-domains.txt
 RUN chmod 0755 /usr/local/bin/devcontainer-init-firewall.sh \
     && chmod 0644 /usr/local/etc/allowed-domains.txt
 
-# Narrow sudo to just that script, revoking the base image's default
-# passwordless-sudo-for-everything. Note this deliberately does NOT grant the feature's
-# init-firewall.sh, whose allowlist is narrower and which drops the Docker DNS rules.
+# Narrow sudo to just that script, revoking the base image's blanket passwordless
+# sudo. The feature's init-firewall.sh is deliberately not granted: narrower
+# allowlist, and it drops the Docker DNS rules.
 RUN rm -f /etc/sudoers.d/vscode \
     && echo "vscode ALL=(root) NOPASSWD: /usr/local/bin/devcontainer-init-firewall.sh" > /etc/sudoers.d/vscode-firewall \
     && chmod 0440 /etc/sudoers.d/vscode-firewall

@@ -1,13 +1,8 @@
-# Extra domains init-firewall.sh allows outbound (on top of GitHub's IP ranges
-# and the Docker host/DNS exceptions it handles itself).
+# Extra outbound domains for init-firewall.sh, on top of the GitHub ranges and
+# Docker host/DNS exceptions it handles itself.
 #
-# One domain per line; blank/# lines ignored. Only letters, digits, dots and
-# hyphens are accepted.
-#
-# Baked into the image at /usr/local/etc/ by the Dockerfile, so edits need a rebuild.
-#
-# Names are resolved exactly as written -- there is no wildcard matching, so
-# every subdomain that must be reachable needs its own line.
+# One domain per line; blank/# lines ignored. No wildcards -- every subdomain
+# needs its own line. Baked into the image by the Dockerfile, so edits need a rebuild.
 
 registry.npmjs.org
 pypi.org

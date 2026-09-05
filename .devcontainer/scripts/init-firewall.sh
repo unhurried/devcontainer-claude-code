@@ -1,24 +1,22 @@
 #!/bin/bash
-set -euo pipefail  # Exit on error, undefined vars, and pipeline failures
-IFS=$'\n\t'       # Stricter word splitting
+set -euo pipefail
+IFS=$'\n\t'
 
-# Fail closed, not open. Most of this script runs while egress is still
-# unrestricted (fetching GitHub's ranges, resolving the allowlist), and the
-# DROP policies are only set near the end. Without this trap, an early failure
-# -- an unreachable api.github.com, a DNS hiccup, a missing host route -- would
-# leave the just-flushed tables wide open on a fresh container, while the user
-# is told the firewall is on. Any non-zero exit now clamps egress to deny-all
-# instead. The exit status is preserved, so postStartCommand still fails loudly.
+# Fail closed. Egress stays unrestricted until the DROP policies near the end, so
+# an early failure would otherwise leave the flushed tables wide open while the
+# user believes the firewall is on.
 deny_all_egress() {
     iptables -F 2>/dev/null || true
     iptables -P INPUT DROP 2>/dev/null || true
     iptables -P FORWARD DROP 2>/dev/null || true
     iptables -P OUTPUT DROP 2>/dev/null || true
-    # Loopback stays up so local tooling doesn't hang on itself.
+    # Keep loopback up so local tooling doesn't hang on itself.
     iptables -A INPUT -i lo -j ACCEPT 2>/dev/null || true
     iptables -A OUTPUT -o lo -j ACCEPT 2>/dev/null || true
 }
 
+# Any non-zero exit clamps egress to deny-all, preserving the status so
+# postStartCommand still fails loudly.
 on_exit() {
     local status=$?
     [ "$status" -eq 0 ] && return 0
@@ -28,10 +26,10 @@ on_exit() {
 }
 trap on_exit EXIT
 
-# 1. Extract Docker DNS info BEFORE any flushing
+# Capture Docker's DNS rules before flushing, to restore them below.
 DOCKER_DNS_RULES=$(iptables-save -t nat | grep "127\.0\.0\.11" || true)
 
-# Flush existing rules and delete existing ipsets
+# Flush existing rules and ipsets
 iptables -F
 iptables -X
 iptables -t nat -F
@@ -40,7 +38,7 @@ iptables -t mangle -F
 iptables -t mangle -X
 ipset destroy allowed-domains 2>/dev/null || true
 
-# 2. Selectively restore ONLY internal Docker DNS resolution
+# Restore only internal Docker DNS resolution
 if [ -n "$DOCKER_DNS_RULES" ]; then
     echo "Restoring Docker DNS rules..."
     iptables -t nat -N DOCKER_OUTPUT 2>/dev/null || true
@@ -50,23 +48,17 @@ else
     echo "No Docker DNS rules to restore"
 fi
 
-# First allow DNS and localhost before any restrictions
-# Allow outbound DNS
+# DNS, SSH and localhost, allowed before any restrictions
 iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
-# Allow inbound DNS responses
 iptables -A INPUT -p udp --sport 53 -j ACCEPT
-# Allow outbound SSH
 iptables -A OUTPUT -p tcp --dport 22 -j ACCEPT
-# Allow inbound SSH responses
 iptables -A INPUT -p tcp --sport 22 -m state --state ESTABLISHED -j ACCEPT
-# Allow localhost
 iptables -A INPUT -i lo -j ACCEPT
 iptables -A OUTPUT -o lo -j ACCEPT
 
-# Create ipset with CIDR support
 ipset create allowed-domains hash:net
 
-# Fetch GitHub meta information and aggregate + add their IP ranges
+# GitHub's published IP ranges
 echo "Fetching GitHub IP ranges..."
 gh_ranges=$(curl -s https://api.github.com/meta)
 if [ -z "$gh_ranges" ]; then
@@ -89,15 +81,9 @@ while read -r cidr; do
     ipset add allowed-domains "$cidr" -exist
 done < <(echo "$gh_ranges" | jq -r '(.web + .api + .git)[]' | aggregate -q)
 
-# Resolve and add other allowed domains, read from a plain-text list baked
-# into the image (see the Dockerfile) rather than from the workspace copy
-# directly. That keeps the same trust boundary as this script itself: editing
-# the workspace copy only takes effect after a container rebuild, not on the
-# next postStartCommand run, so a process running inside the container can't
-# widen its own egress allowlist just by writing to the file.
-#
-# To add a domain, edit .devcontainer/scripts/allowed-domains.txt and rebuild
-# the container.
+# Other allowed domains, read from the list baked into the image (see the
+# Dockerfile) so a process in the container can't widen its own egress by editing
+# the file. To add one: edit .devcontainer/scripts/allowed-domains.txt, rebuild.
 ALLOWED_DOMAINS_FILE=/usr/local/etc/allowed-domains.txt
 if [ ! -f "$ALLOWED_DOMAINS_FILE" ]; then
     echo "ERROR: Allowed domains file not found: $ALLOWED_DOMAINS_FILE"
@@ -107,7 +93,7 @@ fi
 while read -r domain; do
     # Skip blank lines and comments.
     [[ -z "$domain" || "$domain" == \#* ]] && continue
-    # Reject anything that isn't a plausible hostname before it's resolved.
+    # Reject implausible hostnames before resolving them.
     if [[ ! "$domain" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]]; then
         echo "ERROR: Invalid domain in $ALLOWED_DOMAINS_FILE: $domain"
         exit 1
@@ -130,7 +116,7 @@ while read -r domain; do
     done < <(echo "$ips")
 done < "$ALLOWED_DOMAINS_FILE"
 
-# Get host IP from default route
+# Host network, from the default route
 HOST_IP=$(ip route | grep default | cut -d" " -f3)
 if [ -z "$HOST_IP" ]; then
     echo "ERROR: Failed to detect host IP"
@@ -140,23 +126,18 @@ fi
 HOST_NETWORK=$(echo "$HOST_IP" | sed "s/\.[0-9]*$/.0\/24/")
 echo "Host network detected as: $HOST_NETWORK"
 
-# Set up remaining iptables rules
 iptables -A INPUT -s "$HOST_NETWORK" -j ACCEPT
 iptables -A OUTPUT -d "$HOST_NETWORK" -j ACCEPT
 
-# Set default policies to DROP first
+# Deny by default, then allow established traffic and the allowlist
 iptables -P INPUT DROP
 iptables -P FORWARD DROP
 iptables -P OUTPUT DROP
-
-# First allow established connections for already approved traffic
 iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
-
-# Then allow only specific outbound traffic to allowed domains
 iptables -A OUTPUT -m set --match-set allowed-domains dst -j ACCEPT
 
-# Explicitly REJECT all other outbound traffic for immediate feedback
+# REJECT rather than DROP the rest, for immediate feedback
 iptables -A OUTPUT -j REJECT --reject-with icmp-admin-prohibited
 
 echo "Firewall configuration complete"
@@ -168,7 +149,6 @@ else
     echo "Firewall verification passed - unable to reach https://example.com as expected"
 fi
 
-# Verify GitHub API access
 if ! curl --connect-timeout 5 https://api.github.com/zen >/dev/null 2>&1; then
     echo "ERROR: Firewall verification failed - unable to reach https://api.github.com"
     exit 1

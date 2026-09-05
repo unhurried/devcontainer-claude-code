@@ -8,16 +8,14 @@
   },
   "remoteUser": "vscode",
   "runArgs": [
-    // Required by init-firewall.sh to manage iptables/ipset. Harmless no-op when
-    // INIT_FIREWALL=false.
+    // Needed by init-firewall.sh for iptables/ipset; harmless when INIT_FIREWALL=false.
     "--cap-add=NET_ADMIN",
     "--cap-add=NET_RAW",
     // Chromium (Playwright MCP) crashes with the default 64MB /dev/shm.
     "--shm-size=1g"
   ],
-  // Persist Claude Code session/auth state and shell history across rebuilds.
-  // The volume names are keyed to ${devcontainerId}, which is derived from this
-  // workspace and stays stable across rebuilds, so the same volumes are re-attached.
+  // Persist Claude Code state and shell history across rebuilds. ${devcontainerId}
+  // is stable per workspace, so the same volumes are re-attached.
   "mounts": [
     "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume"
@@ -25,14 +23,10 @@
   "containerEnv": {
     // Set INIT_FIREWALL=true on the host to enable the egress firewall. Defaults to false.
     "INIT_FIREWALL": "${localEnv:INIT_FIREWALL:false}",
-    // Claude Code resolves its global config file as
-    // ${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json -- the file holding the logged-in
-    // account, onboarding state and per-workspace trust flags. Left at the default it
-    // lands at ~/.claude.json, outside the volume above, so a rebuild kept the
-    // credentials but dropped the account binding and forced a fresh login. Pointing
-    // CLAUDE_CONFIG_DIR at the already-mounted ~/.claude moves that file (and
-    // projects/, sessions/, history) inside the volume. The path is identical to the
-    // default config dir, so nothing else about the layout changes.
+    // Claude Code's global config lives at ${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json
+    // (account binding, trust flags). At the default it sits outside the volume above,
+    // so a rebuild forced a fresh login. Pointing at the mounted ~/.claude moves it --
+    // plus projects/, sessions/, history -- inside, with no other layout change.
     "CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
   },
   "features": {
@@ -50,9 +44,8 @@
     "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
   },
   "postCreateCommand": "bash .devcontainer/scripts/post-create.sh ${containerWorkspaceFolder}",
-  // The script and its allowlist are baked into the image (see Dockerfile), so this always
-  // runs our version — never the feature-provided init-firewall.sh — and workspace edits
-  // only take effect after a rebuild. INIT_FIREWALL gates execution only.
+  // Script and allowlist are baked into the image (see Dockerfile), so this always runs
+  // our version and workspace edits need a rebuild. INIT_FIREWALL only gates execution.
   "postStartCommand": "if [ \"$INIT_FIREWALL\" = true ]; then sudo /usr/local/bin/devcontainer-init-firewall.sh; else echo 'INIT_FIREWALL=false: skipping egress firewall setup'; fi",
   "waitFor": "postStartCommand",
   "customizations": {
