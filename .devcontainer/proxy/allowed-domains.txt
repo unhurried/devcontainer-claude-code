@@ -1,0 +1,39 @@
+# Outbound allowlist for squid (see squid.conf). One entry per line.
+#
+# A leading dot matches the domain and every subdomain: `.github.com` covers
+# github.com, api.github.com and codeload.github.com. An entry without a leading
+# dot matches that exact host only.
+#
+# Baked into the proxy image by the Dockerfile. The dev container cannot reach the
+# outer Docker daemon, so it cannot rebuild this image -- editing this file only
+# takes effect after a devcontainer rebuild.
+
+# GitHub. Replaces the old api.github.com/meta IP-range fetch entirely.
+.github.com
+.githubusercontent.com
+
+# Language package registries
+registry.npmjs.org
+pypi.org
+files.pythonhosted.org
+
+# Anthropic / Claude Code
+.claude.ai
+api.anthropic.com
+.sentry.io
+.statsig.com
+.statsig.anthropic.com
+
+# VS Code server and extensions
+marketplace.visualstudio.com
+vscode.blob.core.windows.net
+update.code.visualstudio.com
+
+# Docker registry, for image pulls from the in-container daemon
+.docker.io
+production.cloudflare.docker.com
+
+# Playwright browser downloads (post-create.sh)
+cdn.playwright.dev
+playwright.download.prss.microsoft.com
+storage.googleapis.com
