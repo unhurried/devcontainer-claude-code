@@ -33,8 +33,12 @@ else
     fail "unlisted host NOT refused with 403 ($DENIED_URL): ${denied_output:-<no output>}"
 fi
 
-# 3. With the proxy bypassed there is no route out at all.
+# 3. With the proxy bypassed there is no route out at all. ALL_PROXY is unset along
+#    with the protocol-specific variables: curl honours it as a catch-all, so leaving
+#    it set would let this check route through a proxy while reporting that it did
+#    not -- the one way this assertion could pass vacuously.
 if env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy \
+       -u ALL_PROXY -u all_proxy \
     curl -s -o /dev/null --max-time 10 "$ALLOWED_URL"; then
     fail "reached $ALLOWED_URL with the proxy bypassed - this container is NOT isolated"
 else
