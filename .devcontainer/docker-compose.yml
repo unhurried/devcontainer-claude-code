@@ -8,14 +8,6 @@ networks:
     internal: true
   egress:
 
-volumes:
-  # ${devcontainerId} cannot appear in the key -- compose validates key names against
-  # ^[a-zA-Z0-9._-]+$ before interpolating -- but it does resolve in `name`.
-  claude-code-config:
-    name: claude-code-config-${devcontainerId}
-  claude-code-bashhistory:
-    name: claude-code-bashhistory-${devcontainerId}
-
 services:
   proxy:
     build:
@@ -37,13 +29,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        progress: plain
-    # The docker-in-docker feature requests privileged through its feature metadata,
-    # which the devcontainer CLI applies only to image/Dockerfile-based containers --
-    # a compose service has to ask for it. This does not weaken the isolation:
+    # Stated here rather than left to the docker-in-docker feature: the CLI does apply
+    # feature-metadata privileged to a compose service, but the dev container is
+    # useless without it, so the file says so. This does not weaken the isolation:
     # privileged grants capabilities inside this container's own network namespace,
     # and that namespace still has no route out.
+    #
+    # The same merge path applies the feature's own init: true and its /var/lib/docker
+    # volume, so neither needs restating here.
     privileged: true
     networks:
       - isolated
@@ -56,7 +49,8 @@ services:
     # service must stay up on its own.
     command: sleep infinity
     environment:
-      # containerEnv in devcontainer.json is ignored for compose services, so every
+      # devcontainer.json's containerEnv would also reach this service -- the CLI
+      # merges it into the compose environment -- but one place is clearer, so every
       # variable the container needs lives here.
       #
       # Claude Code's global config lives at ${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json
@@ -70,6 +64,7 @@ services:
       NO_PROXY: localhost,127.0.0.1,::1
       no_proxy: localhost,127.0.0.1,::1
     volumes:
+      # The two persisted named volumes are declared as devcontainer.json `mounts`,
+      # not here: their names key off ${devcontainerId}, which resolves only in
+      # devcontainer.json. The CLI merges those mounts into this service's volumes.
       - ..:/workspaces/devcontainer-claude-code:cached
-      - claude-code-config:/home/vscode/.claude
-      - claude-code-bashhistory:/commandhistory

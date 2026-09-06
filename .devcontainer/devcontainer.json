@@ -2,13 +2,24 @@
   "name": "devcontainer-claude-code",
   // Compose, not a bare Dockerfile: the dev service sits on an internal network with
   // no route out, and only the proxy service bridges to the internet. See
-  // docker-compose.yml. runArgs, mounts and containerEnv are ignored for compose
-  // devcontainers, so all three now live in the compose file.
+  // docker-compose.yml. runArgs is the one key compose devcontainers ignore, so its
+  // former contents live in the compose file; mounts and containerEnv are merged
+  // into the dev service by the CLI and still work from here.
   "dockerComposeFile": "docker-compose.yml",
   "service": "dev",
   "workspaceFolder": "/workspaces/devcontainer-claude-code",
   "shutdownAction": "stopCompose",
   "remoteUser": "vscode",
+  // Persist Claude Code state and shell history across rebuilds. ${devcontainerId}
+  // is stable per workspace, so the same volumes are re-attached. These stay here
+  // rather than in docker-compose.yml because the CLI substitutes ${devcontainerId}
+  // only in devcontainer.json -- a compose file is passed through with -f untouched,
+  // and the token would resolve to an empty suffix. The CLI merges these mounts into
+  // the dev service's volumes.
+  "mounts": [
+    "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
+    "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume"
+  ],
   "features": {
     "ghcr.io/devcontainers/features/node:2": {
       "version": "latest",
