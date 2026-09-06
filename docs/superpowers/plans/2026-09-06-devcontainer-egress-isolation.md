@@ -17,7 +17,7 @@
 - **squid must not log to `/dev/stdout`.** It drops privileges to the `squid` user and then cannot open the container's stdout pipe; `access_log stdio:/dev/stdout` makes it exit with `FATAL: Cannot open '/dev/stdout' for writing`. Log to a file under `/var/log/squid/` and have root `tail -F` it.
 - **Never use busybox `wget` to test the proxy.** It sends an absolute-URI `GET` instead of `CONNECT`, which squid cannot serve for `https://`, producing a false failure. Use `curl`.
 - `${devcontainerId}` may **not** be a top-level `volumes:` key — compose validates key names against `^[a-zA-Z0-9._-]+$` before interpolation. Use a static key with an interpolated `name:` value.
-- `containerEnv` and `runArgs` in `devcontainer.json` are **ignored for compose-based devcontainers**. Environment goes in the service's `environment:`, and `--shm-size=1g` becomes `shm_size: 1gb`.
+- `runArgs` in `devcontainer.json` is the only key genuinely **ignored for compose-based devcontainers**; `--shm-size=1g` becomes `shm_size: 1gb` in the compose file. **Corrected 2026-09-06, after the final review:** this bullet originally also named `containerEnv` as ignored. It isn't — the CLI merges `containerEnv` into the service's `environment:`, and likewise merges `mounts` into `volumes:` and applies feature-metadata `privileged`, `init`, `cap_add`, `security_opt` and `user`. This plan still declares the environment directly in the compose file's `environment:` block, for clarity, not because `containerEnv` would fail to deliver it.
 - All `docker` commands in this plan run against the **inner DinD daemon** inside this devcontainer, which is a different daemon from the one hosting the devcontainer itself. Test containers, networks, and images created here cannot collide with the real ones.
 - The Claude Code Bash sandbox blocks `/var/run/docker.sock`. Every `docker` invocation in this plan needs the sandbox disabled (`dangerouslyDisableSandbox: true`), which shows up as `permission denied while trying to connect to the docker API`.
 - Commit messages: a single imperative line, no body, no trailers (see `.claude/skills/commit-message/SKILL.md`).
@@ -685,10 +685,14 @@ docker run --rm -v "$PWD:/w:ro" -w /w alpine:3.20 sh -c '
     # devcontainer.json permits comments, so strip them before parsing.
     # Strip whole-line // comments only; a blanket s://.*:: would eat URLs.
     cfg=$(sed "s:^[[:space:]]*//.*::" "$j" | jq -c .) || { echo "FAIL - $j is not parseable"; exit 1; }
-    for k in dockerComposeFile service workspaceFolder shutdownAction; do
+    for k in dockerComposeFile service workspaceFolder shutdownAction mounts; do
         echo "$cfg" | jq -e "has(\"$k\")" >/dev/null || { echo "FAIL - $j missing $k"; fails=1; }
     done
-    for k in build runArgs mounts containerEnv; do
+    # runArgs is the only key a compose devcontainer genuinely ignores, so it and the
+    # now-redundant build/containerEnv should be gone from devcontainer.json. mounts
+    # stays -- the CLI merges it into the dev service's volumes -- so it belongs in the
+    # "must be present" loop above, not here.
+    for k in build runArgs containerEnv; do
         echo "$cfg" | jq -e "has(\"$k\")" >/dev/null && { echo "FAIL - $j still has $k"; fails=1; }
     done
     echo "$cfg" | jq -e ".postStartCommand | test(\"verify-isolation\")" >/dev/null \
@@ -700,7 +704,9 @@ docker run --rm -v "$PWD:/w:ro" -w /w alpine:3.20 sh -c '
 '
 ```
 
-Expected: FAIL with `missing dockerComposeFile`, `still has build`, `still has runArgs`, `still has mounts`, `still has containerEnv`, `postStartCommand does not run verify-isolation.sh`, and `.mcp.json missing the Chromium proxy flag`.
+Expected: FAIL with `missing dockerComposeFile`, `still has build`, `still has runArgs`, `still has containerEnv`, `postStartCommand does not run verify-isolation.sh`, and `.mcp.json missing the Chromium proxy flag`.
+
+**Corrected 2026-09-06, after the final review:** this snippet originally also asserted `mounts` gone, and expected a matching `still has mounts` failure here. Both were wrong — `mounts` is genuinely merged into the service's `volumes:` by the CLI (only `runArgs` is ignored), and the design deliberately keeps it in `devcontainer.json` (see risk item 1 in the spec). The loop and the expected output above now check for its presence instead of its absence.
 
 - [ ] **Step 2: Replace `.devcontainer/devcontainer.json`**
 
@@ -709,8 +715,9 @@ Expected: FAIL with `missing dockerComposeFile`, `still has build`, `still has r
   "name": "devcontainer-claude-code",
   // Compose, not a bare Dockerfile: the dev service sits on an internal network with
   // no route out, and only the proxy service bridges to the internet. See
-  // docker-compose.yml. runArgs, mounts and containerEnv are ignored for compose
-  // devcontainers, so all three now live in the compose file.
+  // docker-compose.yml. runArgs is the one key compose devcontainers ignore, so its
+  // former contents live in the compose file; mounts and containerEnv are merged
+  // into the dev service by the CLI and still work from here.
   "dockerComposeFile": "docker-compose.yml",
   "service": "dev",
   "workspaceFolder": "/workspaces/devcontainer-claude-code",
@@ -750,6 +757,8 @@ Expected: FAIL with `missing dockerComposeFile`, `still has build`, `still has r
 ```
 
 `INIT_FIREWALL` is gone. It existed because the IP-snapshot firewall was too unreliable to leave on; removing that unreliability is the point of this change, and a compose network's `internal` flag is not a clean thing to toggle at runtime.
+
+**Corrected 2026-09-06, after the final review:** the comment above originally read "runArgs, mounts and containerEnv are ignored for compose devcontainers, so all three now live in the compose file." Only `runArgs` is actually ignored; `mounts` and `containerEnv` are merged in by the CLI, which is why `mounts` is still declared here rather than in `docker-compose.yml`.
 
 - [ ] **Step 3: Add the Chromium proxy flag**
 
@@ -793,23 +802,49 @@ git commit -m "Run the devcontainer under compose behind the egress proxy"
 - Consumes: everything above.
 - Produces: nothing further depends on this task.
 
-- [ ] **Step 1: Rebuild the container**
+**Before you rebuild, do Step 1.** It has to run before Step 2, and it has to run against the right daemon, or there is nothing to compare afterwards.
+
+- [ ] **Step 1: Record the persisted volume names, before rebuilding**
+
+Run this against the **host** Docker daemon — the one hosting this devcontainer. It is not the daemon reached by `docker` commands run *inside* this devcontainer (that is the in-container docker-in-docker daemon, a separate daemon that has never heard of these volumes). Open a terminal on the host, or use `Dev Containers: Reopen Folder Locally` first, then run:
+
+```bash
+docker volume ls --format '{{.Name}}' | grep claude-code
+```
+
+Expected: two volumes from the current image/Dockerfile-based devcontainer, e.g. `claude-code-config-<old-id>` and `claude-code-bashhistory-<old-id>`. **Write these two full names down** — Step 3 needs them.
+
+Why this is worth doing: `${devcontainerId}` is a hash over the container's identifying labels, and which labels those are depends on the configuration style — an image/Dockerfile devcontainer is identified by `devcontainer.local_folder` plus `devcontainer.config_file`; a compose devcontainer, which this rebuild switches to, by `com.docker.compose.project` plus `com.docker.compose.service`. Different inputs to the hash mean the id is very likely to change, which is close to a certainty here, not a remote possibility. When it does, the rebuild attaches to fresh, empty `claude-code-config-<new-id>` and `claude-code-bashhistory-<new-id>` volumes instead of the ones in use — a fresh Claude Code login and an empty shell history — even though `devcontainer.json`'s `mounts` are written correctly. This happens regardless of anything the branch got wrong; recording the old names now is what makes it recoverable in Step 3.
+
+- [ ] **Step 2: Rebuild the container**
 
 Run `Dev Containers: Rebuild Container` from the VS Code command palette. This is a human action; an agent executing this plan should stop here and hand back.
 
-Expected: the build completes and `postStartCommand` prints three `ok` lines and `Egress isolation verified.`
+Expected: the build completes and `postStartCommand` prints four `ok` lines ending in `Egress isolation verified.` A run with one or more `WARN` lines (a host merely unreachable — laptop offline, proxy still starting) still starts and ends in `Egress isolation holds; N connectivity warning(s) above. Starting anyway.`; only a `FATAL` line fails the start.
 
 **If the rebuild fails and you cannot get back in:** reopen the folder locally (`Dev Containers: Reopen Folder Locally`), run `git revert --no-edit <task-5-commit>`, and rebuild. Tasks 1–4 are inert on their own, so reverting Task 5 alone restores the previous working container.
 
-- [ ] **Step 2: Confirm the persisted volumes survived**
+- [ ] **Step 3: Confirm the persisted volumes, and migrate them if the id changed**
+
+Back on the **host** daemon (same caveat as Step 1 — not the in-container one):
 
 ```bash
-docker volume ls | grep claude-code
+docker volume ls --format '{{.Name}}' | grep claude-code
 ```
 
-Expected: `claude-code-config-<id>` and `claude-code-bashhistory-<id>`. If the suffix is empty (`claude-code-config-`), the devcontainer CLI did not substitute `${devcontainerId}`; the names are still stable across rebuilds, so this is cosmetic, but note it. If the suffix differs from the pre-change volumes, Claude Code will ask you to log in again — the old volume still exists and can be copied across.
+Compare the two names against what you wrote down in Step 1.
 
-- [ ] **Step 3: Confirm the toolchain works through the proxy**
+- **Names match:** nothing to do, the id was stable.
+- **Suffix differs** (expect this): the volumes from Step 1 are untouched — the rebuild does not delete them, so nothing is lost yet — but the container is now writing into new, empty volumes: a fresh Claude Code login and an empty shell history. Stop the devcontainer first so nothing is writing to either side, then, against the host daemon, run once per volume:
+
+  ```bash
+  docker run --rm -v <old>:/from -v <new>:/to alpine cp -a /from/. /to/
+  ```
+
+  substituting the Step 1 name for `<old>` and the name just listed for `<new>`, once for the config volume and once for the bashhistory volume. Re-open the devcontainer afterwards. Skipping this migration costs a re-login and empty history and nothing else; delete the old volumes only once you've confirmed the new ones have what you need.
+- **Suffix is empty** (`claude-code-config-`): the devcontainer CLI did not substitute `${devcontainerId}` at all. The name is still stable across rebuilds, so this is cosmetic — note it, no migration needed.
+
+- [ ] **Step 4: Confirm the toolchain works through the proxy**
 
 ```bash
 git ls-remote https://github.com/anthropics/claude-code >/dev/null && echo "ok - git"
@@ -819,14 +854,14 @@ docker pull alpine:3.20 >/dev/null && echo "ok - dind pull"
 curl -sS -o /dev/null https://example.com 2>&1 | grep -q 403 && echo "ok - unlisted host blocked"
 ```
 
-Expected: five `ok` lines. Any failure that is a proxy refusal names the domain in the error; add it to `.devcontainer/proxy/allowed-domains.txt` and rebuild. Expect one or two additions here — moving from GitHub's IP ranges to names surfaces hosts the ranges silently covered.
+Expected: five `ok` lines. Any failure that is a proxy refusal names the domain in the error; add it to `.devcontainer/proxy/allowed-domains.txt` and rebuild. `console.anthropic.com`, `.vsassets.io` and `vscode.download.prss.microsoft.com` were already added ahead of this rebuild to close gaps found before the first interactive run; expect at most one or two more here.
 
-- [ ] **Step 4: Confirm Playwright MCP still drives a browser**
+- [ ] **Step 5: Confirm Playwright MCP still drives a browser**
 
 Ask Claude Code to navigate to `https://github.com` with the Playwright MCP tools.
 Expected: a page snapshot comes back. A blank or error page means Chromium is not using `--proxy-server`; re-check Step 3 of Task 5.
 
-- [ ] **Step 5: Rewrite the README's firewall section**
+- [ ] **Step 6: Rewrite the README's firewall section**
 
 Replace the paragraph and bullets currently spanning `README.md:11-16` with:
 
@@ -836,11 +871,12 @@ On first creation, the Node.js / Python / Docker-in-Docker / Claude Code feature
 - Filtering is by **hostname**, not IP, so CDN address changes cannot break it. A leading dot covers subdomains: `.github.com` matches `github.com`, `api.github.com` and `codeload.github.com`.
 - To change what is reachable, edit `.devcontainer/proxy/allowed-domains.txt` and rebuild. The list is baked into the proxy image, which the dev container cannot reach, so a process inside cannot widen its own egress.
 - A blocked request gets a squid 403 naming the domain, rather than failing silently.
-- Isolation is structural, not a firewall rule: there is no default route out of the dev container, so root and `--privileged` nested containers are equally contained. `.devcontainer/scripts/verify-isolation.sh` asserts this on every container start and fails the start if it does not hold.
+- Isolation is structural, not a firewall rule: there is no default route out of the dev container, so root and `--privileged` nested containers are equally contained. `.devcontainer/scripts/verify-isolation.sh` asserts this on every container start and fails the start if isolation is genuinely broken; a network that is merely unreachable is reported as a warning and the container still opens.
+- Nested containers do not inherit the proxy. Image pulls work because the in-container Docker daemon picks up the proxy variables from its own environment, but a process started by `docker run` gets none of them and will hang until timeout on any network access. Pass them explicitly when you need egress from a nested container: `docker run -e HTTPS_PROXY=http://proxy:3128 -e HTTP_PROXY=http://proxy:3128 ...`.
 - `.devcontainer/tests/` holds the proxy ACL and compose topology tests. Both need the in-container Docker daemon; run them with `.devcontainer/tests/test-proxy-acl.sh` and `.devcontainer/tests/test-compose-topology.sh`.
 ```
 
-- [ ] **Step 6: Update the Playwright note**
+- [ ] **Step 7: Update the Playwright note**
 
 Replace the bullet at `README.md:26` (`**With the firewall enabled, general web browsing does not work.**`) with:
 
@@ -848,7 +884,7 @@ Replace the bullet at `README.md:26` (`**With the firewall enabled, general web 
 - **General web browsing does not work.** Only the hostnames in `.devcontainer/proxy/allowed-domains.txt` are reachable, so any site you want to visit has to be added there followed by a rebuild. Chromium does not read `HTTPS_PROXY`, so `.mcp.json` passes `--proxy-server=http://proxy:3128` explicitly.
 ```
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add README.md
@@ -862,7 +898,8 @@ git commit -m "Document the proxy-based egress isolation"
 Checked against the spec on 2026-09-06:
 
 - Every spec component maps to a task: proxy image and squid.conf and entrypoint and allowlist (Task 1), verify-isolation.sh (Task 2), docker-compose.yml (Task 3), Dockerfile edits and init-firewall.sh deletion (Task 4), devcontainer.json and .mcp.json (Task 5), README (Task 6).
-- Spec risk 1 (`${devcontainerId}`) is resolved in the spec and encoded in Task 3's `name:` form, with a fallback check in Task 6 Step 2.
-- Spec risks 3, 4 and 5 (VS Code server, `post-create.sh` reachability, allowlist completeness) are covered by Task 6 Steps 1 and 3.
-- Spec risk 2 (Claude Code's Bash sandbox proxy) has no dedicated step because it can only be observed in the rebuilt container. It surfaces in Task 6 Step 3, whose commands run through the Bash tool and therefore through the sandbox. If sandboxed Bash cannot reach allowed hosts while unsandboxed Bash can, that is this risk; the fix is to add the sandbox's own proxy port to `NO_PROXY` in `docker-compose.yml`.
+- Spec risk 1 (`${devcontainerId}`) is resolved in the spec and encoded in `devcontainer.json`'s `mounts` (Task 5), with a fallback check in Task 6 Steps 1 and 3.
+- Spec risks 3, 4 and 5 (VS Code server, `post-create.sh` reachability, allowlist completeness) are covered by Task 6 Steps 2 and 4.
+- Spec risk 2 (Claude Code's Bash sandbox proxy) has no dedicated step because it can only be observed in the rebuilt container. It surfaces in Task 6 Step 4, whose commands run through the Bash tool and therefore through the sandbox. If sandboxed Bash cannot reach allowed hosts while unsandboxed Bash can, that is this risk; the fix is to add the sandbox's own proxy port to `NO_PROXY` in `docker-compose.yml`.
+- **Corrected 2026-09-06, after the final review:** the first bullet used to credit Task 3's `name:` interpolation for spec risk 1. The spec's own resolution of that risk (2026-09-06) found that form does not work at all — `${devcontainerId}` never reaches a compose file — and moved the volumes to `devcontainer.json`'s `mounts` instead, which is what Task 5 actually ships.
 - Names used across tasks are consistent: service `dev`, service `proxy`, alias `proxy`, port 3128, network `isolated`, compose network name `devcontainer-claude-code_isolated`, volume keys `claude-code-config` / `claude-code-bashhistory`.
