@@ -20,14 +20,20 @@ files.pythonhosted.org
 # Anthropic / Claude Code
 .claude.ai
 api.anthropic.com
+console.anthropic.com
 .sentry.io
 .statsig.com
 .statsig.anthropic.com
 
 # VS Code server and extensions
 marketplace.visualstudio.com
+# Extension VSIX bytes come from *.gallerycdn.vsassets.io, not the marketplace host.
+.vsassets.io
 vscode.blob.core.windows.net
 update.code.visualstudio.com
+# Current host for the VS Code server payload; without it a rebuild stalls at
+# "Installing VS Code Server".
+vscode.download.prss.microsoft.com
 
 # Docker registry, for image pulls from the in-container daemon
 .docker.io
