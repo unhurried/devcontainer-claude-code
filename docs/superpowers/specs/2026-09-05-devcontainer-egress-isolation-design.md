@@ -259,11 +259,24 @@ should be re-run once after implementation against the real compose stack.
 
 ## Risks and items to confirm during implementation
 
-1. **`${devcontainerId}` inside a compose file.** Needed to keep the existing
-   `claude-code-config-*` and `claude-code-bashhistory-*` volumes attached. The
-   devcontainer spec documents it for this exact purpose, but it is unverified here. If
-   substitution does not happen, fall back to plain names and let compose's project
-   scoping provide uniqueness; that orphans the current volumes and forces one re-login.
+1. **`${devcontainerId}` inside a compose file — resolved 2026-09-06.** It cannot be used
+   as a top-level `volumes:` key. Compose validates key names against
+   `^[a-zA-Z0-9._-]+$` before interpolation, so `claude-code-config-${devcontainerId}:`
+   is rejected outright with `volumes additional properties ... not allowed`, whether or
+   not the variable is set. It works as a **value**, so the volume takes a static key and
+   an interpolated `name:`:
+
+   ```yaml
+   volumes:
+     claude-code-config:
+       name: claude-code-config-${devcontainerId}
+   ```
+
+   Verified: with `devcontainerId=abc123`, `docker compose config` resolves the volume to
+   `claude-code-config-abc123`. This form also degrades safely — if the devcontainer CLI
+   neither substitutes the token nor exports the variable, the name falls back to
+   `claude-code-config-` , which is still stable across rebuilds. Confirm the actual
+   suffix with `docker volume ls` after the first real rebuild.
 2. **Claude Code's Bash sandbox proxy.** The sandbox sets its own `*_PROXY` pointing at
    `localhost:3128` and a host proxy port. Its interaction with a container-level
    `HTTPS_PROXY=http://proxy:3128` is untested; confirm sandboxed Bash can still reach
