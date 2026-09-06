@@ -13,11 +13,7 @@ RUN apt-get update \
         build-essential \
         file \
         sed \
-        iptables \
-        ipset \
         iproute2 \
-        dnsutils \
-        aggregate \
         jq \
         ca-certificates \
         gnupg2 \
@@ -80,19 +76,3 @@ RUN mkdir -p /home/vscode/.claude \
 
 # Help Claude Code orient that it's running in a devcontainer
 ENV DEVCONTAINER=true
-
-# Egress firewall, baked into the image. Under a distinct name because the
-# claude-code feature later writes its own /usr/local/bin/init-firewall.sh, which
-# we leave unused. Living outside the workspace mount also means a process in the
-# container can't widen its own allowlist -- edits need a rebuild.
-COPY scripts/init-firewall.sh /usr/local/bin/devcontainer-init-firewall.sh
-COPY scripts/allowed-domains.txt /usr/local/etc/allowed-domains.txt
-RUN chmod 0755 /usr/local/bin/devcontainer-init-firewall.sh \
-    && chmod 0644 /usr/local/etc/allowed-domains.txt
-
-# Narrow sudo to just that script, revoking the base image's blanket passwordless
-# sudo. The feature's init-firewall.sh is deliberately not granted: narrower
-# allowlist, and it drops the Docker DNS rules.
-RUN rm -f /etc/sudoers.d/vscode \
-    && echo "vscode ALL=(root) NOPASSWD: /usr/local/bin/devcontainer-init-firewall.sh" > /etc/sudoers.d/vscode-firewall \
-    && chmod 0440 /etc/sudoers.d/vscode-firewall
