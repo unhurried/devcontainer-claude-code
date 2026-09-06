@@ -38,6 +38,8 @@ done
 failures=0
 
 # expect <allow|deny> <url> [extra curl args...]
+# Any docker run failure reads as `deny` here; that is only safe because the `expect
+# allow` cases run first on the same image and network and would fail loudly first.
 expect() {
     local want="$1" url="$2"; shift 2
     local got
