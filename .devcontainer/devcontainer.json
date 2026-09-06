@@ -1,34 +1,14 @@
 {
   "name": "devcontainer-claude-code",
-  "build": {
-    "dockerfile": "Dockerfile",
-    "args": {
-      "progress": "plain"
-    }
-  },
+  // Compose, not a bare Dockerfile: the dev service sits on an internal network with
+  // no route out, and only the proxy service bridges to the internet. See
+  // docker-compose.yml. runArgs, mounts and containerEnv are ignored for compose
+  // devcontainers, so all three now live in the compose file.
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "dev",
+  "workspaceFolder": "/workspaces/devcontainer-claude-code",
+  "shutdownAction": "stopCompose",
   "remoteUser": "vscode",
-  "runArgs": [
-    // Needed by init-firewall.sh for iptables/ipset; harmless when INIT_FIREWALL=false.
-    "--cap-add=NET_ADMIN",
-    "--cap-add=NET_RAW",
-    // Chromium (Playwright MCP) crashes with the default 64MB /dev/shm.
-    "--shm-size=1g"
-  ],
-  // Persist Claude Code state and shell history across rebuilds. ${devcontainerId}
-  // is stable per workspace, so the same volumes are re-attached.
-  "mounts": [
-    "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
-    "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume"
-  ],
-  "containerEnv": {
-    // Set INIT_FIREWALL=true on the host to enable the egress firewall. Defaults to false.
-    "INIT_FIREWALL": "${localEnv:INIT_FIREWALL:false}",
-    // Claude Code's global config lives at ${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json
-    // (account binding, trust flags). At the default it sits outside the volume above,
-    // so a rebuild forced a fresh login. Pointing at the mounted ~/.claude moves it --
-    // plus projects/, sessions/, history -- inside, with no other layout change.
-    "CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
-  },
   "features": {
     "ghcr.io/devcontainers/features/node:2": {
       "version": "latest",
@@ -44,9 +24,8 @@
     "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
   },
   "postCreateCommand": "bash .devcontainer/scripts/post-create.sh ${containerWorkspaceFolder}",
-  // Script and allowlist are baked into the image (see Dockerfile), so this always runs
-  // our version and workspace edits need a rebuild. INIT_FIREWALL only gates execution.
-  "postStartCommand": "if [ \"$INIT_FIREWALL\" = true ]; then sudo /usr/local/bin/devcontainer-init-firewall.sh; else echo 'INIT_FIREWALL=false: skipping egress firewall setup'; fi",
+  // Fails container start if egress isolation is not what the compose file claims.
+  "postStartCommand": "bash .devcontainer/scripts/verify-isolation.sh",
   "waitFor": "postStartCommand",
   "customizations": {
     "vscode": {

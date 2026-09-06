@@ -6,7 +6,8 @@
         "--browser",
         "chromium",
         "--headless",
-        "--no-sandbox"
+        "--no-sandbox",
+        "--proxy-server=http://proxy:3128"
       ]
     }
   }
