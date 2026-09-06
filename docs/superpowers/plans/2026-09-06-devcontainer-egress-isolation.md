@@ -319,10 +319,16 @@ fi
 # 2. An unlisted host is refused by the proxy. curl reports the refusal as
 #    "CONNECT tunnel failed, response 403"; a timeout or a different code would mean
 #    something other than the ACL stopped it.
-if curl -sS --max-time 20 -o /dev/null "$DENIED_URL" 2>&1 | grep -q 403; then
+#
+#    The output is captured before being matched, not piped straight into grep: a
+#    refused CONNECT also makes curl exit 56, and under `set -o pipefail` that failure
+#    becomes the pipeline's status even when grep matched. Piping directly would make
+#    this check fail in exactly the case it exists to confirm.
+denied_output="$(curl -sS --max-time 20 -o /dev/null "$DENIED_URL" 2>&1)"
+if printf '%s\n' "$denied_output" | grep -q 403; then
     pass "unlisted host refused with 403 ($DENIED_URL)"
 else
-    fail "unlisted host NOT refused with 403 ($DENIED_URL)"
+    fail "unlisted host NOT refused with 403 ($DENIED_URL): ${denied_output:-<no output>}"
 fi
 
 # 3. With the proxy bypassed there is no route out at all.
