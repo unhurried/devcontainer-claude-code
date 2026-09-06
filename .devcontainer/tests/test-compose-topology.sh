@@ -14,7 +14,10 @@ PROJECT=topotest
 ISO_NET="${PROJECT}_isolated"
 
 cleanup() {
-    docker compose -p "$PROJECT" -f "$COMPOSE" down --remove-orphans >/dev/null 2>&1 || true
+    # --rmi local also drops the proxy image compose builds under this project name;
+    # without it every run leaves another topotest-proxy:latest behind.
+    docker compose -p "$PROJECT" -f "$COMPOSE" down --remove-orphans --rmi local \
+        >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 cleanup
