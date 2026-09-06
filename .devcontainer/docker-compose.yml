@@ -1,0 +1,75 @@
+name: devcontainer-claude-code
+
+networks:
+  # internal:true means Docker creates no gateway for this network and drops traffic
+  # that tries to leave it. That, not iptables inside the container, is the isolation:
+  # there is nothing for a root process or a --privileged nested container to undo.
+  isolated:
+    internal: true
+  egress:
+
+volumes:
+  # ${devcontainerId} cannot appear in the key -- compose validates key names against
+  # ^[a-zA-Z0-9._-]+$ before interpolating -- but it does resolve in `name`.
+  claude-code-config:
+    name: claude-code-config-${devcontainerId}
+  claude-code-bashhistory:
+    name: claude-code-bashhistory-${devcontainerId}
+
+services:
+  proxy:
+    build:
+      context: ./proxy
+    networks:
+      isolated:
+        aliases:
+          - proxy
+      egress:
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "3128"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        progress: plain
+    # The docker-in-docker feature requests privileged through its feature metadata,
+    # which the devcontainer CLI applies only to image/Dockerfile-based containers --
+    # a compose service has to ask for it. This does not weaken the isolation:
+    # privileged grants capabilities inside this container's own network namespace,
+    # and that namespace still has no route out.
+    privileged: true
+    networks:
+      - isolated
+    depends_on:
+      proxy:
+        condition: service_healthy
+    # Chromium (Playwright MCP) crashes with the default 64MB /dev/shm.
+    shm_size: 1gb
+    # devcontainer.json's overrideCommand defaults to false for compose, so the
+    # service must stay up on its own.
+    command: sleep infinity
+    environment:
+      # containerEnv in devcontainer.json is ignored for compose services, so every
+      # variable the container needs lives here.
+      #
+      # Claude Code's global config lives at ${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json
+      # (account binding, trust flags). Pointing it at the mounted ~/.claude keeps it,
+      # plus projects/, sessions/ and history, inside the persisted volume.
+      CLAUDE_CONFIG_DIR: /home/vscode/.claude
+      HTTP_PROXY: http://proxy:3128
+      HTTPS_PROXY: http://proxy:3128
+      http_proxy: http://proxy:3128
+      https_proxy: http://proxy:3128
+      NO_PROXY: localhost,127.0.0.1,::1
+      no_proxy: localhost,127.0.0.1,::1
+    volumes:
+      - ..:/workspaces/devcontainer-claude-code:cached
+      - claude-code-config:/home/vscode/.claude
+      - claude-code-bashhistory:/commandhistory
