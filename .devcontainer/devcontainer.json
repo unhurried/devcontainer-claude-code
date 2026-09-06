@@ -24,7 +24,9 @@
     "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
   },
   "postCreateCommand": "bash .devcontainer/scripts/post-create.sh ${containerWorkspaceFolder}",
-  // Fails container start if egress isolation is not what the compose file claims.
+  // Fails container start only on a real isolation failure -- egress where there
+  // should be none, or a proxy that is not filtering. An unreachable network is
+  // reported as a warning and the container still opens.
   "postStartCommand": "bash .devcontainer/scripts/verify-isolation.sh",
   "waitFor": "postStartCommand",
   "customizations": {
