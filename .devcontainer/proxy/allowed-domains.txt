@@ -24,6 +24,7 @@ console.anthropic.com
 .sentry.io
 .statsig.com
 .statsig.anthropic.com
+.platform.claude.com
 
 # VS Code server and extensions
 marketplace.visualstudio.com
