@@ -8,7 +8,8 @@
 # starts anyway; refusing to open in that case would look like a security breach when
 # it is only a connectivity problem.
 #
-#   fatal   - the unlisted host answered through the proxy (the ACL is not filtering)
+#   fatal   - the unlisted host answered through the proxy (the ACL is not filtering),
+#             unless PROXY_MODE=open, where that is the intended behavior
 #   fatal   - anything was reachable with the proxy bypassed (a route out exists)
 #   warning - an allowed host did not answer
 #   warning - the proxy itself could not be reached
@@ -47,9 +48,19 @@ fi
 #    refused CONNECT also makes curl exit 56, and under `set -o pipefail` that failure
 #    becomes the pipeline's status even when grep matched. Piping directly would make
 #    this check fail in exactly the case it exists to confirm.
+#
+#    PROXY_MODE=open (see ../.env) turns this expectation inside out on purpose: the
+#    domain allowlist is deliberately off, so the unlisted host answering is the
+#    correct outcome, not a filtering failure.
 denied_output="$(curl -sS --max-time 20 -o /dev/null "$DENIED_URL" 2>&1)"
 denied_rc=$?
-if [ "$denied_rc" -eq 0 ]; then
+if [ "${PROXY_MODE:-allowlist}" = open ]; then
+    if [ "$denied_rc" -eq 0 ]; then
+        pass "unlisted host reachable through the proxy ($DENIED_URL) - PROXY_MODE=open, allowlist disabled"
+    else
+        warn "PROXY_MODE=open but $DENIED_URL was not reachable: ${denied_output:-<no output>} - connectivity, not isolation"
+    fi
+elif [ "$denied_rc" -eq 0 ]; then
     fatal "unlisted host $DENIED_URL was REACHABLE through the proxy - the allowlist is not being enforced"
 elif printf '%s\n' "$denied_output" | grep -q 'response 403'; then
     pass "unlisted host refused with 403 ($DENIED_URL)"

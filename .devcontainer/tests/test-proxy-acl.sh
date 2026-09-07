@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Exercise the proxy's allowlist against a live squid, on a throwaway pair of
 # networks mirroring docker-compose.yml. Needs a Docker daemon (DinD).
+#
+# Also covers PROXY_MODE=open (see ../.env): the same denied cases should flip to
+# allowed once the domain allowlist is turned off.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -77,6 +80,23 @@ if docker run --rm --network "$NET_ISO" "$IMG_CLIENT" \
 else
     printf 'ok   - %-34s %s\n' "direct egress" "deny"
 fi
+
+# PROXY_MODE=open must lift the domain allowlist without opening a route around the
+# proxy: swap the same container for one built with PROXY_MODE=open and re-run the
+# previously-denied cases expecting them to pass now.
+docker rm -f "$CTR" >/dev/null 2>&1 || true
+docker run -d --name "$CTR" --network "$NET_ISO" --network-alias proxy \
+    -e PROXY_MODE=open "$IMG_PROXY" >/dev/null
+docker network connect "$NET_EGR" "$CTR"
+for _ in $(seq 30); do
+    if docker exec "$CTR" nc -z 127.0.0.1 3128 >/dev/null 2>&1; then break; fi
+    sleep 1
+done
+
+printf -- '-- PROXY_MODE=open --\n'
+expect allow https://www.google.com/
+expect allow https://example.com/
+expect allow https://140.82.121.6/ -k
 
 if [ "$failures" -ne 0 ]; then
     printf '\n%d ACL check(s) failed.\n' "$failures" >&2

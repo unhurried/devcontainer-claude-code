@@ -18,6 +18,10 @@ services:
           - proxy
       egress:
     restart: unless-stopped
+    environment:
+      # See .env: "allowlist" (default) restricts squid to allowed-domains.txt, "open"
+      # lifts the domain allowlist without touching the network topology below.
+      PROXY_MODE: ${PROXY_MODE:-allowlist}
     healthcheck:
       test: ["CMD", "nc", "-z", "127.0.0.1", "3128"]
       interval: 5s
@@ -57,6 +61,9 @@ services:
       # (account binding, trust flags). Pointing it at the mounted ~/.claude keeps it,
       # plus projects/, sessions/ and history, inside the persisted volume.
       CLAUDE_CONFIG_DIR: /home/vscode/.claude
+      # Not used to reach the proxy -- only read by verify-isolation.sh so it knows
+      # whether an unlisted host answering is expected (PROXY_MODE=open) or a failure.
+      PROXY_MODE: ${PROXY_MODE:-allowlist}
       HTTP_PROXY: http://proxy:3128
       HTTPS_PROXY: http://proxy:3128
       http_proxy: http://proxy:3128

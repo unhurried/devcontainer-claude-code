@@ -284,6 +284,15 @@ the IP-snapshot firewall was too unreliable to leave enabled; removing that unre
 is the point of this change, and a compose network's `internal` flag is not a clean thing
 to switch at runtime.
 
+**Added 2026-09-07 — a narrower, different toggle.** `PROXY_MODE` (in `.devcontainer/.env`,
+default `allowlist`) switches squid between the allowlist config and `squid-open.conf`,
+which drops the `allowed_domains`/`ip_literal` ACLs and allows any destination. This is
+not the removed `INIT_FIREWALL` toggle reinstated: the network topology is untouched in
+either mode — `dev` stays on `isolated` with no default route, and squid remains the only
+path out. What `PROXY_MODE=open` gives up is the domain allowlist, nothing structural; the
+"root and `--privileged` nested containers are equally contained" property above holds in
+both modes. `verify-isolation.sh` and `test-proxy-acl.sh` cover both.
+
 ### `.mcp.json` (edited)
 
 Chromium does not read `HTTPS_PROXY`. Add `--proxy-server=http://proxy:3128` to the

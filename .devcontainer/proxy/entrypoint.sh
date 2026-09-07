@@ -8,4 +8,12 @@ install -d -o squid -g squid /var/log/squid
 chown squid:squid /var/log/squid/access.log
 tail -F /var/log/squid/access.log &
 
-exec squid -N -f /etc/squid/squid.conf
+# PROXY_MODE is set (via ../.env, interpolated by docker-compose.yml) on this
+# container's environment. "open" swaps in the config with no domain allowlist; any
+# other value, including unset, keeps the default allowlist config.
+case "${PROXY_MODE:-allowlist}" in
+    open) CONF=/etc/squid/squid-open.conf ;;
+    *)    CONF=/etc/squid/squid.conf ;;
+esac
+
+exec squid -N -f "$CONF"
