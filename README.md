@@ -25,12 +25,21 @@ The [Playwright MCP](https://github.com/microsoft/playwright-mcp) server is regi
 - The MCP server version is pinned as `MCP_VERSION` in `.devcontainer/scripts/post-create.sh`; the matching Playwright version is derived from it. Pinning is required because `.npmrc` sets `min-release-age=7`, which rejects releases published within the last week. Bump `MCP_VERSION` and rebuild to upgrade.
 - **General web browsing does not work.** Only the hostnames in `.devcontainer/proxy/allowed-domains.txt` are reachable, so any site you want to visit has to be added there followed by a rebuild. Chromium does not read `HTTPS_PROXY`, so `.mcp.json` passes `--proxy-server=http://proxy:3128` explicitly.
 
-## Voice input (`/voice`) — WSL2 hosts only
+## Voice input (`/voice`)
 
-Claude Code records through SoX's `rec`, which needs a PulseAudio server. VS Code forwards X11 and Wayland into a devcontainer but never audio, so WSLg's socket is bind-mounted explicitly: `/mnt/wslg/PulseServer` plus `PULSE_SERVER` on the `dev` service in `.devcontainer/docker-compose.yml`. SoX and its pulse backend are installed in the image (`Dockerfile`).
+Claude Code records through SoX's `rec`, which needs a PulseAudio server. VS Code forwards X11 and Wayland into a devcontainer but never audio, so the host's socket has to be bind-mounted — and only the host knows whether one exists. `.devcontainer/scripts/detect-audio.sh` runs there as `initializeCommand` and writes `.devcontainer/docker-compose.audio.yml`, a second compose file layered over the first:
 
-- **On a non-WSL host, delete both entries.** The bind source will not exist and the container will fail to start.
-- Confirm the host side first: `/mnt/wslg/PulseServer` must exist in the WSL distro and `rec` must record there. Windows' own microphone privacy settings apply.
-- With Docker Desktop the bind source is resolved inside the `docker-desktop` distro, where the socket may not be visible; if `/mnt/wslg/PulseServer` is absent in the container, that is why. A daemon running natively in the WSL distro does not have this problem.
+- On **WSL2**, WSLg's `/mnt/wslg/PulseServer` is found and mounted, and `PULSE_SERVER` is set. `/voice` works.
+- On **any other host**, the override is an empty `services: {dev: {}}`. The container builds and runs exactly as before; only `/voice` reports no recorder.
+- To point it at a socket the probe does not know, export `VOICE_PULSE_SOCKET=/path/to/socket` on the host before opening the container. A path that is not a socket warns and is ignored rather than failing the build.
+
+The generated file is gitignored and rewritten on every start, so a host that gains or loses its socket is picked up on the next rebuild. If you drive compose by hand rather than through VS Code, pass both files (`-f docker-compose.yml -f docker-compose.audio.yml`) or run the script first — the base file alone is valid and simply has no audio.
+
+`initializeCommand` needs a POSIX shell **on the host**: open the workspace from inside WSL, not from Windows. SoX and its pulse backend are installed in the image (`Dockerfile`).
+
+Troubleshooting on WSL2:
+
+- Confirm the host side first — `/mnt/wslg/PulseServer` must exist in the WSL distro and `rec` must record there. Windows' own microphone privacy settings apply.
+- Inside the container, `rec --version` must exit 0. That exact probe is what voice mode uses to decide a recorder exists, which is why a missing server surfaces as "could not find a working audio recorder" even with SoX installed. Then `rec -q -t wav /tmp/t.wav trim 0 3 && play /tmp/t.wav`.
+- With Docker Desktop the bind source is resolved inside the `docker-desktop` distro, where the socket may not be visible. If the script reports a mount but `/mnt/wslg/PulseServer` is absent in the container, that is why; a daemon running natively in the WSL distro does not have this problem.
 - Routing PulseAudio over TCP instead is not an option here: the `dev` service has no route to the host, so the Unix socket is the only path.
-- To check inside the container: `rec --version` must exit 0 — that exact probe is what voice mode uses to decide a recorder exists. Then `rec -q -t wav /tmp/t.wav trim 0 3 && play /tmp/t.wav`.

@@ -4,7 +4,9 @@
   // route out, and only the proxy bridges to the internet (see docker-compose.yml).
   // runArgs is ignored under compose, so its former contents moved there; mounts and
   // containerEnv are merged into the dev service and still work from here.
-  "dockerComposeFile": "docker-compose.yml",
+  // The audio override is generated per host by initializeCommand below; it is empty on
+  // a host with no PulseAudio socket, so this list is valid everywhere.
+  "dockerComposeFile": ["docker-compose.yml", "docker-compose.audio.yml"],
   "service": "dev",
   "workspaceFolder": "/workspaces/devcontainer-claude-code",
   "shutdownAction": "stopCompose",
@@ -31,6 +33,9 @@
     },
     "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
   },
+  // Runs on the host before anything is built. Needs a POSIX shell there: open the
+  // workspace from inside WSL, not from Windows.
+  "initializeCommand": "bash .devcontainer/scripts/detect-audio.sh",
   "postCreateCommand": "bash .devcontainer/scripts/post-create.sh ${containerWorkspaceFolder}",
   // Fails container start only on a real isolation failure -- egress where there should
   // be none, or a proxy not filtering. Unreachable network only warns.
