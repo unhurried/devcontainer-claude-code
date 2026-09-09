@@ -19,7 +19,10 @@ console.anthropic.com
 .sentry.io
 .statsig.com
 .statsig.anthropic.com
-.platform.claude.com
+# Covers platform.claude.com and docs.claude.com. The docs host only 301s to
+# platform.claude.com/docs, so allowing the redirect target alone is not enough --
+# the first request has to be allowed too.
+.claude.com
 
 # VS Code server and extensions
 marketplace.visualstudio.com
@@ -30,11 +33,29 @@ update.code.visualstudio.com
 # VS Code server payload; without it a rebuild stalls at "Installing VS Code Server".
 vscode.download.prss.microsoft.com
 
-# Docker registry, for image pulls from the in-container daemon
+# Container registries, for image pulls from the in-container daemon
 .docker.io
 production.cloudflare.docker.com
+# GitHub Container Registry. Only the API host is needed: layer blobs are served
+# from pkg-containers.githubusercontent.com, covered by .githubusercontent.com.
+ghcr.io
 
 # Playwright browser downloads (post-create.sh)
 cdn.playwright.dev
 playwright.download.prss.microsoft.com
 storage.googleapis.com
+
+# Documentation, so WebFetch and the Playwright MCP server have something to read.
+# All static and GET-only: none of these can be posted to, so they widen what can be
+# fetched without adding a channel data could leave by.
+# GitHub Pages, where a large share of open-source project docs live.
+.github.io
+developer.mozilla.org
+docs.python.org
+# Python project docs are served from *.readthedocs.io; readthedocs.org is the index.
+.readthedocs.io
+readthedocs.org
+# www.npmjs.com is deliberately absent: it answers a plain client with a bot-check 403.
+docs.npmjs.com
+# Node docs, and nodejs.org/dist for `nvm install`.
+nodejs.org
