@@ -64,7 +64,16 @@ services:
       https_proxy: http://proxy:3128
       NO_PROXY: localhost,127.0.0.1,::1
       no_proxy: localhost,127.0.0.1,::1
+      # Pairs with the /mnt/wslg/PulseServer mount below -- sox reads this to find the
+      # recording device. WSL hosts only.
+      PULSE_SERVER: unix:/mnt/wslg/PulseServer
     volumes:
       # The two persisted named volumes are devcontainer.json `mounts`, not here:
       # ${devcontainerId} in their names resolves only there. The CLI merges them in.
       - ..:/workspaces/devcontainer-claude-code:cached
+      # WSLg's PulseAudio socket, so Claude Code's /voice can record. VS Code forwards
+      # X11 and Wayland into the container but never audio, and with no Pulse server
+      # reachable `rec --version` exits 1 -- exactly the probe voice mode uses to decide
+      # a recorder exists. WSL2 hosts only: elsewhere the source path is absent and the
+      # container will not start, so delete these two entries.
+      - /mnt/wslg/PulseServer:/mnt/wslg/PulseServer

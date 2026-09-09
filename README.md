@@ -24,3 +24,13 @@ The [Playwright MCP](https://github.com/microsoft/playwright-mcp) server is regi
 - The browser runs headless with `--no-sandbox`. The `dev` service is `privileged: true`, so Chromium's own sandbox would in fact start, but it adds nothing here — the container is already the boundary, and it has no route off the isolated network. `shm_size: 1gb` is set on the `dev` service in `.devcontainer/docker-compose.yml` because Chromium crashes with Docker's default 64 MB `/dev/shm`.
 - The MCP server version is pinned as `MCP_VERSION` in `.devcontainer/scripts/post-create.sh`; the matching Playwright version is derived from it. Pinning is required because `.npmrc` sets `min-release-age=7`, which rejects releases published within the last week. Bump `MCP_VERSION` and rebuild to upgrade.
 - **General web browsing does not work.** Only the hostnames in `.devcontainer/proxy/allowed-domains.txt` are reachable, so any site you want to visit has to be added there followed by a rebuild. Chromium does not read `HTTPS_PROXY`, so `.mcp.json` passes `--proxy-server=http://proxy:3128` explicitly.
+
+## Voice input (`/voice`) — WSL2 hosts only
+
+Claude Code records through SoX's `rec`, which needs a PulseAudio server. VS Code forwards X11 and Wayland into a devcontainer but never audio, so WSLg's socket is bind-mounted explicitly: `/mnt/wslg/PulseServer` plus `PULSE_SERVER` on the `dev` service in `.devcontainer/docker-compose.yml`. SoX and its pulse backend are installed in the image (`Dockerfile`).
+
+- **On a non-WSL host, delete both entries.** The bind source will not exist and the container will fail to start.
+- Confirm the host side first: `/mnt/wslg/PulseServer` must exist in the WSL distro and `rec` must record there. Windows' own microphone privacy settings apply.
+- With Docker Desktop the bind source is resolved inside the `docker-desktop` distro, where the socket may not be visible; if `/mnt/wslg/PulseServer` is absent in the container, that is why. A daemon running natively in the WSL distro does not have this problem.
+- Routing PulseAudio over TCP instead is not an option here: the `dev` service has no route to the host, so the Unix socket is the only path.
+- To check inside the container: `rec --version` must exit 0 — that exact probe is what voice mode uses to decide a recorder exists. Then `rec -q -t wav /tmp/t.wav trim 0 3 && play /tmp/t.wav`.

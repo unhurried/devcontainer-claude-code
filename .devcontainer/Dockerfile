@@ -30,6 +30,16 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Claude Code's /voice records through SoX's `rec`; the pulse backend is what reaches
+# WSLg's PulseServer (mounted in docker-compose.yml). Without the backend `rec` finds no
+# device, exits non-zero even for --version, and voice mode reports no recorder.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        sox \
+        libsox-fmt-pulse \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 # Chromium runtime deps for the Playwright MCP server (see .mcp.json). From apt rather
 # than `playwright install --with-deps`, since Playwright isn't installed until the Node
 # feature runs after this build. Mirrors Playwright's Ubuntu 24.04 list (`t64` = noble).
