@@ -16,4 +16,10 @@ case "${PROXY_MODE:-allowlist}" in
     *)    CONF=/etc/squid/squid.conf ;;
 esac
 
+# The pid file survives a container restart (the writable layer is not reset), and
+# `exec` below makes squid PID 1, so the stale file always names PID 1 -- a pid that is
+# alive by definition, being squid itself. squid reads that as "another instance is
+# already running" and exits FATAL, forever, since every restart re-reads the same file.
+rm -f /run/squid.pid
+
 exec squid -N -f "$CONF"
