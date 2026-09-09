@@ -1,9 +1,9 @@
 name: devcontainer-claude-code
 
 networks:
-  # internal:true means Docker creates no gateway for this network and drops traffic
-  # that tries to leave it. That, not iptables inside the container, is the isolation:
-  # there is nothing for a root process or a --privileged nested container to undo.
+  # internal:true gives this network no gateway, so traffic cannot leave it. That is
+  # the isolation -- not iptables, so root or a nested --privileged container has
+  # nothing to undo.
   isolated:
     internal: true
   egress:
@@ -19,8 +19,8 @@ services:
       egress:
     restart: unless-stopped
     environment:
-      # See .env: "allowlist" (default) restricts squid to allowed-domains.txt, "open"
-      # lifts the domain allowlist without touching the network topology below.
+      # See .env: "allowlist" (default) restricts squid to allowed-domains.txt,
+      # "open" lifts it without touching the topology below.
       PROXY_MODE: ${PROXY_MODE:-allowlist}
     healthcheck:
       test: ["CMD", "nc", "-z", "127.0.0.1", "3128"]
@@ -33,14 +33,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    # Stated here rather than left to the docker-in-docker feature: the CLI does apply
-    # feature-metadata privileged to a compose service, but the dev container is
-    # useless without it, so the file says so. This does not weaken the isolation:
-    # privileged grants capabilities inside this container's own network namespace,
-    # and that namespace still has no route out.
-    #
-    # The same merge path applies the feature's own init: true and its /var/lib/docker
-    # volume, so neither needs restating here.
+    # The docker-in-docker feature would set this anyway (as it does init: true and the
+    # /var/lib/docker volume, left implicit); stated because the container is useless
+    # without it. Isolation holds: privileged grants capabilities inside this
+    # container's own network namespace, which still has no route out.
     privileged: true
     networks:
       - isolated
@@ -53,16 +49,14 @@ services:
     # service must stay up on its own.
     command: sleep infinity
     environment:
-      # devcontainer.json's containerEnv would also reach this service -- the CLI
-      # merges it into the compose environment -- but one place is clearer, so every
-      # variable the container needs lives here.
+      # devcontainer.json's containerEnv would work too (the CLI merges it here), but
+      # every variable lives in one place.
       #
-      # Claude Code's global config lives at ${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json
-      # (account binding, trust flags). Pointing it at the mounted ~/.claude keeps it,
-      # plus projects/, sessions/ and history, inside the persisted volume.
+      # Claude Code's global config is ${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json; pointing
+      # it at the mounted ~/.claude keeps it in the persisted volume.
       CLAUDE_CONFIG_DIR: /home/vscode/.claude
-      # Not used to reach the proxy -- only read by verify-isolation.sh so it knows
-      # whether an unlisted host answering is expected (PROXY_MODE=open) or a failure.
+      # Not used to reach the proxy -- only read by verify-isolation.sh, to tell an
+      # expected open-mode success from a filtering failure.
       PROXY_MODE: ${PROXY_MODE:-allowlist}
       HTTP_PROXY: http://proxy:3128
       HTTPS_PROXY: http://proxy:3128
@@ -71,7 +65,6 @@ services:
       NO_PROXY: localhost,127.0.0.1,::1
       no_proxy: localhost,127.0.0.1,::1
     volumes:
-      # The two persisted named volumes are declared as devcontainer.json `mounts`,
-      # not here: their names key off ${devcontainerId}, which resolves only in
-      # devcontainer.json. The CLI merges those mounts into this service's volumes.
+      # The two persisted named volumes are devcontainer.json `mounts`, not here:
+      # ${devcontainerId} in their names resolves only there. The CLI merges them in.
       - ..:/workspaces/devcontainer-claude-code:cached

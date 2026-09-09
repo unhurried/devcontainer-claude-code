@@ -1,6 +1,6 @@
 #!/bin/sh
-# squid drops privileges to the `squid` user, which cannot open the container's
-# stdout pipe, so it logs to a file and root tails it into `docker logs`.
+# squid drops to the `squid` user and cannot open the container's stdout pipe, so it
+# logs to a file and root tails it into `docker logs`.
 set -e
 
 install -d -o squid -g squid /var/log/squid
@@ -8,18 +8,15 @@ install -d -o squid -g squid /var/log/squid
 chown squid:squid /var/log/squid/access.log
 tail -F /var/log/squid/access.log &
 
-# PROXY_MODE is set (via ../.env, interpolated by docker-compose.yml) on this
-# container's environment. "open" swaps in the config with no domain allowlist; any
-# other value, including unset, keeps the default allowlist config.
+# "open" (see ../.env) swaps in the config with no domain allowlist; any other value,
+# including unset, keeps the allowlist.
 case "${PROXY_MODE:-allowlist}" in
     open) CONF=/etc/squid/squid-open.conf ;;
     *)    CONF=/etc/squid/squid.conf ;;
 esac
 
-# The pid file survives a container restart (the writable layer is not reset), and
-# `exec` below makes squid PID 1, so the stale file always names PID 1 -- a pid that is
-# alive by definition, being squid itself. squid reads that as "another instance is
-# already running" and exits FATAL, forever, since every restart re-reads the same file.
+# The pid file survives a restart, and `exec` makes squid PID 1, so a stale file always
+# names a live pid -- squid reads that as "already running" and exits FATAL, forever.
 rm -f /run/squid.pid
 
 exec squid -N -f "$CONF"

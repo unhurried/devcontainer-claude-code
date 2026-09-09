@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
-# Exercise the proxy's allowlist against a live squid, on a throwaway pair of
-# networks mirroring docker-compose.yml. Needs a Docker daemon (DinD).
-#
-# Also covers PROXY_MODE=open (see ../.env): the same denied cases should flip to
-# allowed once the domain allowlist is turned off.
+# Exercise the proxy's allowlist against a live squid, on throwaway networks mirroring
+# docker-compose.yml. Needs a Docker daemon (DinD). Also covers PROXY_MODE=open (see
+# ../.env), where the denied cases should flip to allowed.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,8 +21,8 @@ trap cleanup EXIT
 cleanup
 
 docker build -q -t "$IMG_PROXY" "$PROXY_DIR" >/dev/null
-# busybox wget sends an absolute-URI GET instead of CONNECT, which squid cannot
-# serve for https, so the client needs real curl.
+# busybox wget sends an absolute-URI GET instead of CONNECT, which squid cannot serve
+# for https, so the client needs real curl.
 printf 'FROM alpine:3.20\nRUN apk add --no-cache curl\n' \
     | docker build -q -t "$IMG_CLIENT" - >/dev/null
 
@@ -41,8 +39,8 @@ done
 failures=0
 
 # expect <allow|deny> <url> [extra curl args...]
-# Any docker run failure reads as `deny` here; that is only safe because the `expect
-# allow` cases run first on the same image and network and would fail loudly first.
+# Any docker run failure reads as `deny`; safe only because the `expect allow` cases
+# run first on the same image and network and would fail loudly.
 expect() {
     local want="$1" url="$2"; shift 2
     local got
@@ -65,8 +63,8 @@ expect allow https://raw.githubusercontent.com/
 # Exact entries must match.
 expect allow https://registry.npmjs.org/
 expect allow https://pypi.org/
-# Unlisted names must be refused even when they share infrastructure with
-# something that is listed (storage.googleapis.com is allowed; this is not).
+# Unlisted names must be refused even when they share infrastructure with a listed one
+# (storage.googleapis.com is allowed; this is not).
 expect deny https://www.google.com/
 expect deny https://example.com/
 # A raw address must not bypass name-based filtering.
@@ -81,9 +79,8 @@ else
     printf 'ok   - %-34s %s\n' "direct egress" "deny"
 fi
 
-# PROXY_MODE=open must lift the domain allowlist without opening a route around the
-# proxy: swap the same container for one built with PROXY_MODE=open and re-run the
-# previously-denied cases expecting them to pass now.
+# PROXY_MODE=open must lift the allowlist without opening a route around the proxy:
+# restart the same image in open mode and re-run the denied cases as allowed.
 docker rm -f "$CTR" >/dev/null 2>&1 || true
 docker run -d --name "$CTR" --network "$NET_ISO" --network-alias proxy \
     -e PROXY_MODE=open "$IMG_PROXY" >/dev/null
