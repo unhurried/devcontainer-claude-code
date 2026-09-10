@@ -61,6 +61,9 @@ services:
       # Not used to reach the proxy -- only read by verify-isolation.sh, to tell an
       # expected open-mode success from a filtering failure.
       PROXY_MODE: ${PROXY_MODE:-allowlist}
+      # Claude Code's /voice records through SoX's `rec`, which needs a PulseAudio
+      # server; see the bind mount below.
+      PULSE_SERVER: unix:/mnt/wslg/PulseServer
       HTTP_PROXY: http://proxy:3128
       HTTPS_PROXY: http://proxy:3128
       http_proxy: http://proxy:3128
@@ -71,6 +74,9 @@ services:
       # The two persisted named volumes are devcontainer.json `mounts`, not here:
       # ${devcontainerId} in their names resolves only there. The CLI merges them in.
       - ..:/workspaces/devcontainer-claude-code:cached
-      # A host PulseAudio socket is mounted here too, for Claude Code's /voice -- from
-      # docker-compose.audio.yml, which scripts/detect-audio.sh generates on the host
-      # because only the host knows whether such a socket exists.
+      # The host's PulseAudio socket, for /voice. VS Code forwards X11 and Wayland into
+      # a devcontainer but never audio, so it has to be bind-mounted -- and a bind
+      # source that does not exist fails the container start, hence the /dev/null
+      # default: with it `rec` simply finds no recorder. Point VOICE_PULSE_SOCKET at
+      # the real socket in .env (see .env.example); on WSL2 that is /mnt/wslg/PulseServer.
+      - ${VOICE_PULSE_SOCKET:-/dev/null}:/mnt/wslg/PulseServer

@@ -12,7 +12,7 @@ On first creation, the Node.js / Python / Docker-in-Docker / Claude Code feature
 - Filtering is by **hostname**, not IP, so CDN address changes cannot break it. A leading dot covers subdomains: `.github.com` matches `github.com`, `api.github.com` and `codeload.github.com`.
 - To change what is reachable, edit `.devcontainer/proxy/allowed-domains.txt` and rebuild. The list is baked into the proxy image, which the dev container cannot reach, so a process inside cannot widen its own egress.
 - A blocked request gets a squid 403 naming the domain, rather than failing silently.
-- The domain allowlist itself can be switched off without touching the network topology: copy `.devcontainer/.env.example` to `.devcontainer/.env`, set `PROXY_MODE=open` there and rebuild (default is `allowlist`). `.env` is gitignored, so it is yours to edit without it showing up in a commit; the template is the file to change when the default should move for everyone. squid then allows any destination, but the dev container still has no route out except through squid — this loosens *which domains* are reachable, not the structural isolation below. `verify-isolation.sh` reads the same variable so it doesn't flag an unlisted host answering as a failure while `open` is set.
+- The domain allowlist itself can be switched off without touching the network topology: copy `.devcontainer/.env.example` to `.devcontainer/.env`, set `PROXY_MODE=open` there and rebuild (default is `allowlist`). `.env` is gitignored, so it is yours to edit without it showing up in a commit; the template is the file to change when the default should move for everyone. squid then allows any hostname (raw IP addresses stay refused), but the dev container still has no route out except through squid — this loosens *which domains* are reachable, not the structural isolation below. `verify-isolation.sh` reads the same variable so it doesn't flag an unlisted host answering as a failure while `open` is set.
 - Isolation is structural, not a firewall rule: there is no default route out of the dev container, so root and `--privileged` nested containers are equally contained. `.devcontainer/scripts/verify-isolation.sh` asserts this on every container start and fails the start if isolation is genuinely broken; a network that is merely unreachable is reported as a warning and the container still opens.
 - Nested containers do not inherit the proxy. Image pulls work because the in-container Docker daemon picks up the proxy variables from its own environment, but a process started by `docker run` gets none of them and will hang until timeout on any network access. Pass them explicitly when you need egress from a nested container: `docker run -e HTTPS_PROXY=http://proxy:3128 -e HTTP_PROXY=http://proxy:3128 ...`.
 - `.devcontainer/tests/` holds the proxy ACL and compose topology tests. Both need the in-container Docker daemon; run them with `.devcontainer/tests/test-proxy-acl.sh` and `.devcontainer/tests/test-compose-topology.sh`.
@@ -35,19 +35,16 @@ The [Playwright MCP](https://github.com/microsoft/playwright-mcp) server is regi
 
 ## Voice input (`/voice`)
 
-Claude Code records through SoX's `rec`, which needs a PulseAudio server. VS Code forwards X11 and Wayland into a devcontainer but never audio, so the host's socket has to be bind-mounted — and only the host knows whether one exists. `.devcontainer/scripts/detect-audio.sh` runs there as `initializeCommand` and writes `.devcontainer/docker-compose.audio.yml`, a second compose file layered over the first:
+Claude Code records through SoX's `rec`, which needs a PulseAudio server. VS Code forwards X11 and Wayland into a devcontainer but never audio, so the host's socket has to be bind-mounted. `docker-compose.yml` mounts `${VOICE_PULSE_SOCKET:-/dev/null}` at `/mnt/wslg/PulseServer` and points `PULSE_SERVER` there:
 
-- On **WSL2**, WSLg's `/mnt/wslg/PulseServer` is found and mounted, and `PULSE_SERVER` is set. `/voice` works.
-- On **any other host**, the override is an empty `services: {dev: {}}`. The container builds and runs exactly as before; only `/voice` reports no recorder.
-- To point it at a socket the probe does not know, export `VOICE_PULSE_SOCKET=/path/to/socket` on the host before opening the container. A path that is not a socket warns and is ignored rather than failing the build.
+- Set `VOICE_PULSE_SOCKET` in `.devcontainer/.env` to the host socket and rebuild. On **WSL2** that is WSLg's `/mnt/wslg/PulseServer`; `.env.example` has the line to uncomment. `/voice` works.
+- Leave it unset and `/dev/null` is mounted instead, so the bind source always exists and the container starts on any host; only `/voice` reports no recorder.
 
-The generated file is gitignored and rewritten on every start, so a host that gains or loses its socket is picked up on the next rebuild. If you drive compose by hand rather than through VS Code, pass both files (`-f docker-compose.yml -f docker-compose.audio.yml`) or run the script first — the base file alone is valid and simply has no audio.
-
-`initializeCommand` needs a POSIX shell **on the host**: open the workspace from inside WSL, not from Windows. SoX and its pulse backend are installed in the image (`Dockerfile`).
+SoX and its pulse backend are installed in the image (`Dockerfile`).
 
 Troubleshooting on WSL2:
 
 - Confirm the host side first — `/mnt/wslg/PulseServer` must exist in the WSL distro and `rec` must record there. Windows' own microphone privacy settings apply.
 - Inside the container, `rec --version` must exit 0. That exact probe is what voice mode uses to decide a recorder exists, which is why a missing server surfaces as "could not find a working audio recorder" even with SoX installed. Then `rec -q -t wav /tmp/t.wav trim 0 3 && play /tmp/t.wav`.
-- With Docker Desktop the bind source is resolved inside the `docker-desktop` distro, where the socket may not be visible. If the script reports a mount but `/mnt/wslg/PulseServer` is absent in the container, that is why; a daemon running natively in the WSL distro does not have this problem.
+- With Docker Desktop the bind source is resolved inside the `docker-desktop` distro, where the socket may not be visible. If `/mnt/wslg/PulseServer` inside the container is not a socket even though `VOICE_PULSE_SOCKET` is set, that is why; a daemon running natively in the WSL distro does not have this problem.
 - Routing PulseAudio over TCP instead is not an option here: the `dev` service has no route to the host, so the Unix socket is the only path.

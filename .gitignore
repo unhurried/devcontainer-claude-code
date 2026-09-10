@@ -1,5 +1,3 @@
 .claude/settings.local.json
-# Generated per host by .devcontainer/scripts/detect-audio.sh
-.devcontainer/docker-compose.audio.yml
 # Per-developer copy of .devcontainer/.env.example
 .devcontainer/.env
