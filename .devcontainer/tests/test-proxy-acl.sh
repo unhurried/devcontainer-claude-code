@@ -80,7 +80,8 @@ else
 fi
 
 # PROXY_MODE=open must lift the allowlist without opening a route around the proxy:
-# restart the same image in open mode and re-run the denied cases as allowed.
+# restart the same image in open mode and re-run the denied hostnames as allowed. The
+# raw-address deny is not part of the allowlist and stays.
 docker rm -f "$CTR" >/dev/null 2>&1 || true
 docker run -d --name "$CTR" --network "$NET_ISO" --network-alias proxy \
     -e PROXY_MODE=open "$IMG_PROXY" >/dev/null
@@ -93,7 +94,7 @@ done
 printf -- '-- PROXY_MODE=open --\n'
 expect allow https://www.google.com/
 expect allow https://example.com/
-expect allow https://140.82.121.6/ -k
+expect deny  https://140.82.121.6/ -k
 
 if [ "$failures" -ne 0 ]; then
     printf '\n%d ACL check(s) failed.\n' "$failures" >&2
