@@ -29,9 +29,6 @@
       "Bash(sudo:*)"
     ]
   },
-  "enabledMcpjsonServers": [
-    "playwright"
-  ],
   "hooks": {
     "Notification": [
       {

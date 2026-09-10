@@ -50,8 +50,10 @@
   },
   "postCreateCommand": "bash .devcontainer/scripts/post-create.sh ${containerWorkspaceFolder}",
   // Fails container start only on a real isolation failure -- egress where there should
-  // be none, or a proxy not filtering. Unreachable network only warns.
-  "postStartCommand": "bash .devcontainer/scripts/verify-isolation.sh",
+  // be none, or a proxy not filtering. Unreachable network only warns. Then installs the
+  // Claude Code guardrails at user scope (see sync-claude-config.sh) -- on every start,
+  // so an edit to .devcontainer/claude/ needs no rebuild.
+  "postStartCommand": "bash .devcontainer/scripts/verify-isolation.sh && bash .devcontainer/scripts/sync-claude-config.sh ${containerWorkspaceFolder}",
   "waitFor": "postStartCommand",
   "customizations": {
     "vscode": {
@@ -61,7 +63,10 @@
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
-        "security.workspace.trust.enabled": false
+        "security.workspace.trust.enabled": false,
+        // Repositories cloned under repos/ are two levels down; the default depth (1)
+        // would leave them out of the Source Control view.
+        "git.repositoryScanMaxDepth": 2
       }
     }
   }

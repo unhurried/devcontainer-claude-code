@@ -17,6 +17,22 @@ On first creation, the Node.js / Python / Docker-in-Docker / Claude Code feature
 - Nested containers do not inherit the proxy. Image pulls work because the in-container Docker daemon picks up the proxy variables from its own environment, but a process started by `docker run` gets none of them and will hang until timeout on any network access. Pass them explicitly when you need egress from a nested container: `docker run -e HTTPS_PROXY=http://proxy:3128 -e HTTP_PROXY=http://proxy:3128 ...`.
 - `.devcontainer/tests/` holds the proxy ACL and compose topology tests. Both need the in-container Docker daemon; run them with `.devcontainer/tests/test-proxy-acl.sh` and `.devcontainer/tests/test-compose-topology.sh`.
 
+## Working on other repositories
+
+Clone the repositories you actually work on under `repos/`. It is created on container start, sits inside the bind-mounted workspace so the host sees it too, and is gitignored here, so a repository nested in it is invisible to this repo's `git status` and cannot be swallowed by a stray `git add .`.
+
+- The gitignore entry is a plain `repos/`, deliberately without a tracked `.gitkeep`: the negation that would need (`repos/*` + `!repos/.gitkeep`) makes ripgrep — and with it Claude Code's search — skip the repositories even when started from inside `repos/`.
+- Start Claude Code **inside the repository** for repository-scoped work (commits, worktrees, `/code-review`), and in `repos/` to work across several at once. Both places see the guardrails below because they live at user scope. Do not start it at this repo's root to work on `repos/`: the ignore entry hides everything under it from Claude Code's search there, and the git-integrated features would target this repo instead.
+- The VS Code Source Control view picks the repositories up because `git.repositoryScanMaxDepth` is raised to 2 in `devcontainer.json`.
+
+## Claude Code settings
+
+The permission mode, allow/ask lists, sandbox, notification hooks and the Playwright MCP server are installed at **user scope** (`~/.claude`, a persisted volume), not as project settings of this repo. Project settings are read only from the directory Claude Code is started in, so they would not apply in `repos/` or in a repository cloned there — which is where the work happens.
+
+- `.devcontainer/claude/settings.json` is the tracked source. `.devcontainer/scripts/sync-claude-config.sh` merges it into `~/.claude/settings.json` on every container start (`postStartCommand`): every key the template defines wins, arrays included, and keys Claude Code writes there itself (model, theme, voice, ...) survive. Edit the template and restart the container, or run the script by hand — no rebuild. A key *removed* from the template lingers in `~/.claude/settings.json` until removed there by hand.
+- The same script registers the Playwright MCP server at user scope (`claude mcp add -s user`), replacing the entry only when its command line differs from the one in the script.
+- Claude Code's sandbox refuses writes to the live `~/.claude/settings.json`, but not to the template — it is an ordinary tracked file, like the rest of `.devcontainer/`. Review changes to it the same way you would review a change to the proxy allowlist.
+
 ## Rebuilds
 
 The image build talks to the internet directly — it runs on the host's Docker daemon, not on the isolated network — so it is not what makes a rebuild slow. Everything after it is: `postCreateCommand` and the VS Code server install go through squid, and between them they would fetch several hundred megabytes on every rebuild.
@@ -27,11 +43,11 @@ The image build talks to the internet directly — it runs on the host's Docker 
 
 ## Browser automation (Playwright MCP)
 
-The [Playwright MCP](https://github.com/microsoft/playwright-mcp) server is registered in `.mcp.json` and enabled for this project, so Claude Code can drive a browser out of the box. Chromium and its OS dependencies are installed automatically — the shared libraries at image build time (`Dockerfile`), the browser binary on container creation (`post-create.sh`). The browser lives in a persisted volume, so only the first creation downloads it.
+The [Playwright MCP](https://github.com/microsoft/playwright-mcp) server is registered at user scope by `.devcontainer/scripts/sync-claude-config.sh` (see [Claude Code settings](#claude-code-settings)), so Claude Code can drive a browser out of the box wherever it is started. Chromium and its OS dependencies are installed automatically — the shared libraries at image build time (`Dockerfile`), the browser binary on container creation (`post-create.sh`). The browser lives in a persisted volume, so only the first creation downloads it.
 
 - The browser runs headless with `--no-sandbox`. The `dev` service is `privileged: true`, so Chromium's own sandbox would in fact start, but it adds nothing here — the container is already the boundary, and it has no route off the isolated network. `shm_size: 1gb` is set on the `dev` service in `.devcontainer/docker-compose.yml` because Chromium crashes with Docker's default 64 MB `/dev/shm`.
 - The MCP server version is pinned as `MCP_VERSION` in `.devcontainer/scripts/post-create.sh`; the matching Playwright version is derived from it. Pinning is required because `.npmrc` sets `min-release-age=7`, which rejects releases published within the last week. Bump `MCP_VERSION` and rebuild to upgrade.
-- **General web browsing does not work.** Only the hostnames in `.devcontainer/proxy/allowed-domains.txt` are reachable, so any site you want to visit has to be added there followed by a rebuild. Chromium does not read `HTTPS_PROXY`, so `.mcp.json` passes `--proxy-server=http://proxy:3128` explicitly.
+- **General web browsing does not work.** Only the hostnames in `.devcontainer/proxy/allowed-domains.txt` are reachable, so any site you want to visit has to be added there followed by a rebuild. Chromium does not read `HTTPS_PROXY`, so the MCP definition in `sync-claude-config.sh` passes `--proxy-server=http://proxy:3128` explicitly.
 
 ## Voice input (`/voice`)
 

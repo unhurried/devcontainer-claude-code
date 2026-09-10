@@ -10,8 +10,8 @@ if [ -f "$LEGACY_CONFIG" ] && [ ! -f "$PERSISTED_CONFIG" ]; then
   mv "$LEGACY_CONFIG" "$PERSISTED_CONFIG"
 fi
 
-# Install the Playwright MCP server and its browser (see .mcp.json). Not in the
-# Dockerfile: npm exists only after the Node feature installs.
+# Install the Playwright MCP server and its browser; sync-claude-config.sh registers it
+# with Claude Code. Not in the Dockerfile: npm exists only after the Node feature installs.
 #
 # This is the slowest thing a rebuild does -- it is the one step that pulls hundreds of
 # megabytes through the proxy. Both caches it needs are persisted volumes
