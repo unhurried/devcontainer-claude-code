@@ -27,9 +27,10 @@ Clone the repositories you actually work on under `repos/`. It is created on con
 
 ## Claude Code settings
 
-The permission mode, allow/ask lists, sandbox, notification hooks and the Playwright MCP server are installed at **user scope** (`~/.claude`, a persisted volume), not as project settings of this repo. Project settings are read only from the directory Claude Code is started in, so they would not apply in `repos/` or in a repository cloned there — which is where the work happens.
+The permission mode, allow/ask lists, sandbox, notification hooks, skills and the Playwright MCP server are installed at **user scope** (`~/.claude`, a persisted volume), not as project settings of this repo. Project settings and skills are read only from the directory Claude Code is started in (only `CLAUDE.md` is looked up in parent directories), so they would not apply in `repos/` or in a repository cloned there — which is where the work happens.
 
 - `.devcontainer/claude/settings.json` is the tracked source. `.devcontainer/scripts/sync-claude-config.sh` merges it into `~/.claude/settings.json` on every container start (`postStartCommand`): every key the template defines wins, arrays included, and keys Claude Code writes there itself (model, theme, voice, ...) survive. Edit the template and restart the container, or run the script by hand — no rebuild. A key *removed* from the template lingers in `~/.claude/settings.json` until removed there by hand.
+- Skills live in `.devcontainer/claude/skills/<name>/` and are symlinked into `~/.claude/skills/` by the same script, so an edit is live immediately. They apply in every repository; a repository with conventions of its own states them in its `CLAUDE.md` or `.claude/skills/`, which Claude Code reads alongside. A real directory already present under `~/.claude/skills/` with the same name is left alone with a warning.
 - The same script registers the Playwright MCP server at user scope (`claude mcp add -s user`), replacing the entry only when its command line differs from the one in the script.
 - Claude Code's sandbox refuses writes to the live `~/.claude/settings.json`, but not to the template — it is an ordinary tracked file, like the rest of `.devcontainer/`. Review changes to it the same way you would review a change to the proxy allowlist.
 

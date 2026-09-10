@@ -10,6 +10,7 @@
 #
 # Sources (tracked)                     Destination (persisted volume)
 #   .devcontainer/claude/settings.json    ~/.claude/settings.json      merged in
+#   .devcontainer/claude/skills/<name>/   ~/.claude/skills/<name>      symlinked
 #   the MCP definition below              ~/.claude/.claude.json       via claude mcp
 set -euo pipefail
 
@@ -47,6 +48,25 @@ if [ "$(jq -S . <<<"$existing")" != "$merged" ]; then
   mv "$tmp" "$SETTINGS"
   echo "Updated $SETTINGS from $TEMPLATE"
 fi
+
+# --- skills -------------------------------------------------------------------------
+# Symlinked, not copied: Claude Code only reads skills, so an edit to the tracked source
+# is live at once. An existing real directory of the same name is someone's own skill
+# and is left alone (with a warning) rather than replaced.
+mkdir -p "$CONFIG_DIR/skills"
+for src in "$WORKSPACE"/.devcontainer/claude/skills/*/; do
+  [ -d "$src" ] || continue
+  src="${src%/}"
+  dst="$CONFIG_DIR/skills/$(basename "$src")"
+  if [ -e "$dst" ] && [ ! -L "$dst" ]; then
+    echo "WARN  - $dst exists and is not a symlink; not replacing it with $src" >&2
+    continue
+  fi
+  if [ "$(readlink "$dst" 2>/dev/null)" != "$src" ]; then
+    ln -sfn "$src" "$dst"
+    echo "Linked $dst -> $src"
+  fi
+done
 
 # --- MCP servers --------------------------------------------------------------------
 # Playwright, as .mcp.json used to define it. Chromium does not read HTTPS_PROXY, so the
