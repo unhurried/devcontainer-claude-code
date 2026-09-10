@@ -55,6 +55,9 @@ services:
       # Claude Code's global config is ${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json; pointing
       # it at the mounted ~/.claude keeps it in the persisted volume.
       CLAUDE_CONFIG_DIR: /home/vscode/.claude
+      # Playwright's own Linux default, stated so the persisted volume mounted at this
+      # path (devcontainer.json) and the tool cannot drift apart.
+      PLAYWRIGHT_BROWSERS_PATH: /home/vscode/.cache/ms-playwright
       # Not used to reach the proxy -- only read by verify-isolation.sh, to tell an
       # expected open-mode success from a filtering failure.
       PROXY_MODE: ${PROXY_MODE:-allowlist}

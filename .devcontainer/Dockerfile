@@ -79,10 +79,18 @@ RUN mkdir -p /commandhistory \
     && chown -R vscode:vscode /commandhistory \
     && echo "export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" >> /home/vscode/.bashrc
 
-# Seed ~/.claude as vscode so the config volume (devcontainer.json) isn't
-# auto-created root-owned.
+# Seed the paths devcontainer.json mounts volumes onto, as vscode. A named volume takes
+# the ownership of the image directory it covers; one docker has to create itself comes
+# out root-owned, and none of these are written as root.
 RUN mkdir -p /home/vscode/.claude \
-    && chown -R vscode:vscode /home/vscode/.claude
+             /home/vscode/.cache/ms-playwright \
+             /home/vscode/.npm \
+             /home/vscode/.vscode-server \
+    && chown -R vscode:vscode \
+             /home/vscode/.claude \
+             /home/vscode/.cache \
+             /home/vscode/.npm \
+             /home/vscode/.vscode-server
 
 # Help Claude Code orient that it's running in a devcontainer
 ENV DEVCONTAINER=true

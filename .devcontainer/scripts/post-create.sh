@@ -12,16 +12,26 @@ fi
 
 # Install the Playwright MCP server and its browser (see .mcp.json). Not in the
 # Dockerfile: npm exists only after the Node feature installs.
+#
+# This is the slowest thing a rebuild does -- it is the one step that pulls hundreds of
+# megabytes through the proxy. Both caches it needs are persisted volumes
+# (devcontainer.json), so on a rebuild the packages resolve from ~/.npm and the browser
+# is already in ~/.cache/ms-playwright: no download, no network.
 
 # Pinned: .npmrc sets min-release-age=7, so `@latest` fails on fresh releases.
 MCP_VERSION=0.0.79
 
-# Derived, not a second pin that could drift: browser downloads are keyed by revision,
-# so a mismatch surfaces at run time as "browser not found".
-PW_VERSION="$(npm view "@playwright/mcp@${MCP_VERSION}" dependencies.playwright)"
+# Global so starting the MCP server needs no network (no npx fetch). --prefer-offline
+# takes what the cache has without revalidating it against the registry; a version the
+# cache is missing is still fetched.
+npm install -g --prefer-offline "@playwright/mcp@${MCP_VERSION}"
 
-# Global so starting the MCP server needs no network (no npx fetch).
-npm install -g "@playwright/mcp@${MCP_VERSION}" "playwright@${PW_VERSION}"
+# Derived, not a second pin that could drift: browser downloads are keyed by revision,
+# so a mismatch surfaces at run time as "browser not found". Read off the package just
+# installed rather than with `npm view`, which always goes to the registry.
+PW_VERSION="$(node -p "require('$(npm root -g)/@playwright/mcp/package.json').dependencies.playwright")"
+npm install -g --prefer-offline "playwright@${PW_VERSION}"
 
 # Browser binary only: OS deps come from the Dockerfile, and `--with-deps` needs root.
+# A no-op once the persisted volume holds this revision.
 playwright install chromium

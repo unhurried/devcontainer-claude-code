@@ -42,10 +42,10 @@ check "dev service is on the isolated network only" isolated \
 check "proxy service bridges both networks" egress,isolated \
     "$(q '.services.proxy.networks | keys | sort | join(",")')"
 
-# The CLI substitutes ${devcontainerId} only in devcontainer.json, so assert both
-# mounts live there and the compose file carries no such token.
-check "devcontainer.json mounts both volumes with a \${devcontainerId} suffix" 2 \
-    "$(grep -c '^\s*"source=claude-code-\(config\|bashhistory\)-\${devcontainerId},' \
+# The CLI substitutes ${devcontainerId} only in devcontainer.json, so assert every
+# mount lives there and the compose file carries no such token.
+check "devcontainer.json mounts every volume with a \${devcontainerId} suffix" 5 \
+    "$(grep -c '^\s*"source=claude-code-[a-z-]\+-\${devcontainerId},target=' \
         "$DEVCONTAINER_JSON" || true)"
 check "compose file interpolates no \${devcontainerId}" 0 \
     "$(grep -v '^[[:space:]]*#' "$COMPOSE" | grep -c 'devcontainerId' || true)"

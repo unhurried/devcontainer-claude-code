@@ -11,22 +11,39 @@
   "workspaceFolder": "/workspaces/devcontainer-claude-code",
   "shutdownAction": "stopCompose",
   "remoteUser": "vscode",
-  // Persist Claude Code state and shell history across rebuilds; ${devcontainerId} is
-  // stable per workspace, so the same volumes are re-attached. Not in
-  // docker-compose.yml: the CLI substitutes that token only here (a compose file is
-  // passed through untouched), then merges these mounts into the dev service.
+  // Persist state and caches across rebuilds; ${devcontainerId} is stable per
+  // workspace, so the same volumes are re-attached. Not in docker-compose.yml: the CLI
+  // substitutes that token only here (a compose file is passed through untouched), then
+  // merges these mounts into the dev service.
+  //
+  // The last three hold nothing that cannot be re-downloaded -- but downloading it is
+  // the slow part of a rebuild: the image build talks to the internet directly, while
+  // everything after it goes through squid, and that is where the ~650MB of Playwright
+  // browsers and the VS Code server payload come from. Their mount points are created
+  // in the Dockerfile so each volume is seeded vscode-owned; a mount point docker has
+  // to create itself belongs to root, and the tool writing there is not root.
   "mounts": [
     "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
-    "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume"
+    "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
+    "source=claude-code-playwright-${devcontainerId},target=/home/vscode/.cache/ms-playwright,type=volume",
+    "source=claude-code-npm-${devcontainerId},target=/home/vscode/.npm,type=volume",
+    "source=claude-code-vscode-server-${devcontainerId},target=/home/vscode/.vscode-server,type=volume"
   ],
+  // devcontainer-lock.json pins the features themselves; these pin what they install,
+  // which "latest" would otherwise re-resolve on every build that misses the cache --
+  // so a rebuild meant to fix something else can hand you a new major of Node instead.
+  // nodejs.org and python.org keep every release, so an old pin still builds. Bump
+  // these deliberately.
   "features": {
     "ghcr.io/devcontainers/features/node:2": {
-      "version": "latest",
+      "version": "26.8.1",
       "nodeGypDependencies": true
     },
     "ghcr.io/devcontainers/features/python:1": {
-      "version": "latest"
+      "version": "3.14.7"
     },
+    // Left unpinned on purpose: moby comes from apt, whose repo drops old versions, so
+    // an exact pin here is a rebuild that fails some months from now.
     "ghcr.io/devcontainers/features/docker-in-docker:4": {
       "version": "latest",
       "moby": true
