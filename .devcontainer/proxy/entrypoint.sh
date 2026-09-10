@@ -8,7 +8,7 @@ install -d -o squid -g squid /var/log/squid
 chown squid:squid /var/log/squid/access.log
 tail -F /var/log/squid/access.log &
 
-# "open" (see ../.env) swaps in the config with no domain allowlist; any other value,
+# "open" (see ../.env.example) swaps in the config with no domain allowlist; any other value,
 # including unset, keeps the allowlist.
 case "${PROXY_MODE:-allowlist}" in
     open) CONF=/etc/squid/squid-open.conf ;;

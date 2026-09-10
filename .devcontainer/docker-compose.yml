@@ -19,7 +19,7 @@ services:
       egress:
     restart: unless-stopped
     environment:
-      # See .env: "allowlist" (default) restricts squid to allowed-domains.txt,
+      # See .env.example: "allowlist" (default) restricts squid to allowed-domains.txt,
       # "open" lifts it without touching the topology below.
       PROXY_MODE: ${PROXY_MODE:-allowlist}
     healthcheck:

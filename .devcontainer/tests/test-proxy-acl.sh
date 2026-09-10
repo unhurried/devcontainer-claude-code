@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Exercise the proxy's allowlist against a live squid, on throwaway networks mirroring
 # docker-compose.yml. Needs a Docker daemon (DinD). Also covers PROXY_MODE=open (see
-# ../.env), where the denied cases should flip to allowed.
+# ../.env.example), where the denied cases should flip to allowed.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

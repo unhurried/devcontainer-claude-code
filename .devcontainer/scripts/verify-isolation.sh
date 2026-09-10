@@ -43,7 +43,7 @@ fi
 #    also exits 56, and under pipefail that would fail the check in the very case it
 #    exists to confirm.
 #
-#    Under PROXY_MODE=open (see ../.env) the allowlist is deliberately off, so the
+#    Under PROXY_MODE=open (see ../.env.example) the allowlist is deliberately off, so the
 #    unlisted host answering is the correct outcome.
 denied_output="$(curl -sS --max-time 20 -o /dev/null "$DENIED_URL" 2>&1)"
 denied_rc=$?
