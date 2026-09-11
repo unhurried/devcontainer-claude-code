@@ -18,7 +18,8 @@ fi
 # (devcontainer.json), so on a rebuild the packages resolve from ~/.npm and the browser
 # is already in ~/.cache/ms-playwright: no download, no network.
 
-# Pinned: .npmrc sets min-release-age=7, so `@latest` fails on fresh releases.
+# Pinned: NPM_CONFIG_MIN_RELEASE_AGE (docker-compose.yml) makes `@latest` fail on a
+# release younger than a week.
 MCP_VERSION=0.0.79
 
 # Global so starting the MCP server needs no network (no npx fetch). --prefer-offline

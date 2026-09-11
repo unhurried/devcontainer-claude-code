@@ -18,6 +18,21 @@ services:
           - proxy
       egress:
     restart: unless-stopped
+    # The one process facing the internet, so it keeps only what entrypoint.sh and squid
+    # actually use: CHOWN, FOWNER and DAC_OVERRIDE for the log setup as root (the
+    # package ships /var/log/squid owned by squid, and `install -d` chmods it),
+    # SETUID/SETGID for squid to drop to its own user. 3128 is unprivileged, so no
+    # NET_BIND_SERVICE.
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETUID
+      - SETGID
+    security_opt:
+      - no-new-privileges:true
     environment:
       # See .env.example: "allowlist" (default) restricts squid to allowed-domains.txt,
       # "open" lifts it without touching the topology below.
@@ -64,12 +79,26 @@ services:
       # Claude Code's /voice records through SoX's `rec`, which needs a PulseAudio
       # server; see the bind mount below.
       PULSE_SERVER: unix:/mnt/wslg/PulseServer
+      # Sentry error reports and Statsig telemetry, so neither host needs to be in the
+      # allowlist. Not CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: that also switches off
+      # the auto-updater, which settings.json turns on.
+      DISABLE_ERROR_REPORTING: "1"
+      DISABLE_TELEMETRY: "1"
+      # npm guardrails for every invocation: a project .npmrc is read only inside its
+      # own tree and never in global mode, so it covered neither `npm install -g` in
+      # post-create.sh nor a repository under repos/ with a package.json of its own.
+      # ignore-scripts skips install-time scripts (`npm rebuild` runs them on demand for
+      # native modules); min-release-age refuses versions published in the last 7 days.
+      NPM_CONFIG_IGNORE_SCRIPTS: "true"
+      NPM_CONFIG_MIN_RELEASE_AGE: "7"
       HTTP_PROXY: http://proxy:3128
       HTTPS_PROXY: http://proxy:3128
       http_proxy: http://proxy:3128
       https_proxy: http://proxy:3128
-      NO_PROXY: localhost,127.0.0.1,::1
-      no_proxy: localhost,127.0.0.1,::1
+      # The private ranges keep containers started by the in-container daemon reachable
+      # by address; without them squid would be asked to dial them and refuse.
+      NO_PROXY: localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+      no_proxy: localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
     volumes:
       # The two persisted named volumes are devcontainer.json `mounts`, not here:
       # ${devcontainerId} in their names resolves only there. The CLI merges them in.

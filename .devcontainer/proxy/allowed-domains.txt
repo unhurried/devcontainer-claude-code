@@ -16,9 +16,8 @@ files.pythonhosted.org
 .claude.ai
 api.anthropic.com
 console.anthropic.com
-.sentry.io
-.statsig.com
-.statsig.anthropic.com
+# Sentry and Statsig are absent on purpose: DISABLE_ERROR_REPORTING and
+# DISABLE_TELEMETRY (docker-compose.yml) stop Claude Code from contacting them.
 # Covers platform.claude.com and docs.claude.com. The docs host only 301s to
 # platform.claude.com/docs, so allowing the redirect target alone is not enough --
 # the first request has to be allowed too.

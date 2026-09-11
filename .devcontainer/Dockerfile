@@ -40,7 +40,8 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Chromium runtime deps for the Playwright MCP server (see .mcp.json). From apt rather
+# Chromium runtime deps for the Playwright MCP server (registered by
+# scripts/sync-claude-config.sh). From apt rather
 # than `playwright install --with-deps`, since Playwright isn't installed until the Node
 # feature runs after this build. Mirrors Playwright's Ubuntu 24.04 list (`t64` = noble).
 RUN apt-get update \
