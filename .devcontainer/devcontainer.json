@@ -58,8 +58,7 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "anthropic.claude-code",
-        "wenbopan.vscode-terminal-osc-notifier"
+        "anthropic.claude-code"
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",

@@ -5,7 +5,7 @@
 # Why user scope: project-scope settings (.claude/settings.json, .mcp.json) are read
 # from the directory Claude Code is started in, and nothing else. Started in repos/ or
 # inside one of the repositories cloned there, this repo's project settings would not
-# apply -- so the sandbox, permission mode, hooks and MCP server that make this a safe
+# apply -- so the sandbox, permission mode and MCP server that make this a safe
 # environment live in ~/.claude instead, which every start location sees.
 #
 # Sources (tracked)                     Destination (persisted volume)
