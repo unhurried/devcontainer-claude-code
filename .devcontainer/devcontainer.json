@@ -14,18 +14,20 @@
   // substitutes that token only here (a compose file is passed through untouched), then
   // merges these mounts into the dev service.
   //
-  // The last three hold nothing that cannot be re-downloaded -- but downloading it is
+  // The last four hold nothing that cannot be re-downloaded -- but downloading it is
   // the slow part of a rebuild: the image build talks to the internet directly, while
   // everything after it goes through squid, and that is where the ~650MB of Playwright
-  // browsers and the VS Code server payload come from. Their mount points are created
-  // in the Dockerfile so each volume is seeded vscode-owned; a mount point docker has
-  // to create itself belongs to root, and the tool writing there is not root.
+  // browsers, the VS Code server payload and the ~200MB Claude Code binary (native
+  // install under ~/.local, see post-create.sh) come from. Their mount points are
+  // created in the Dockerfile so each volume is seeded vscode-owned; a mount point
+  // docker has to create itself belongs to root, and the tool writing there is not root.
   "mounts": [
     "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
     "source=claude-code-playwright-${devcontainerId},target=/home/vscode/.cache/ms-playwright,type=volume",
     "source=claude-code-npm-${devcontainerId},target=/home/vscode/.npm,type=volume",
-    "source=claude-code-vscode-server-${devcontainerId},target=/home/vscode/.vscode-server,type=volume"
+    "source=claude-code-vscode-server-${devcontainerId},target=/home/vscode/.vscode-server,type=volume",
+    "source=claude-code-local-${devcontainerId},target=/home/vscode/.local,type=volume"
   ],
   // devcontainer-lock.json pins the features themselves; these pin what they install,
   // which "latest" would otherwise re-resolve on every build that misses the cache --
@@ -45,8 +47,10 @@
     "ghcr.io/devcontainers/features/docker-in-docker:4": {
       "version": "latest",
       "moby": true
-    },
-    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+    }
+    // Claude Code itself is not a feature: that one runs `npm install -g` as root, and
+    // the auto-updater then fails three ways (see post-create.sh). The native
+    // installer runs there instead, as vscode.
   },
   "postCreateCommand": "bash .devcontainer/scripts/post-create.sh ${containerWorkspaceFolder}",
   // Fails container start only on a real isolation failure -- egress where there should

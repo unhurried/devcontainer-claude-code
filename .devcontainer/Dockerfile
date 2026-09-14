@@ -87,11 +87,17 @@ RUN mkdir -p /home/vscode/.claude \
              /home/vscode/.cache/ms-playwright \
              /home/vscode/.npm \
              /home/vscode/.vscode-server \
+             /home/vscode/.local/bin \
     && chown -R vscode:vscode \
              /home/vscode/.claude \
              /home/vscode/.cache \
              /home/vscode/.npm \
-             /home/vscode/.vscode-server
+             /home/vscode/.vscode-server \
+             /home/vscode/.local
+
+# Where the native installer puts `claude` (post-create.sh). ~/.profile adds it too,
+# but only for login shells; postStartCommand and VS Code tasks are not.
+ENV PATH=/home/vscode/.local/bin:$PATH
 
 # Help Claude Code orient that it's running in a devcontainer
 ENV DEVCONTAINER=true

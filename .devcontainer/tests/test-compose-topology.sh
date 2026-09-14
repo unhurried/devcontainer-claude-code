@@ -44,7 +44,7 @@ check "proxy service bridges both networks" egress,isolated \
 
 # The CLI substitutes ${devcontainerId} only in devcontainer.json, so assert every
 # mount lives there and the compose file carries no such token.
-check "devcontainer.json mounts every volume with a \${devcontainerId} suffix" 5 \
+check "devcontainer.json mounts every volume with a \${devcontainerId} suffix" 6 \
     "$(grep -c '^\s*"source=claude-code-[a-z-]\+-\${devcontainerId},target=' \
         "$DEVCONTAINER_JSON" || true)"
 check "compose file interpolates no \${devcontainerId}" 0 \

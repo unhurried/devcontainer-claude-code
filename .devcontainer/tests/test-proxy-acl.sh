@@ -60,6 +60,8 @@ expect allow https://api.github.com/zen
 expect allow https://github.com/
 expect allow https://codeload.github.com/
 expect allow https://raw.githubusercontent.com/
+# Claude Code's installer and auto-updater (post-create.sh) live under .claude.ai.
+expect allow https://downloads.claude.ai/
 # Exact entries must match.
 expect allow https://registry.npmjs.org/
 expect allow https://pypi.org/

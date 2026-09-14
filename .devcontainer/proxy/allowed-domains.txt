@@ -12,7 +12,8 @@ registry.npmjs.org
 pypi.org
 files.pythonhosted.org
 
-# Anthropic / Claude Code
+# Anthropic / Claude Code. downloads.claude.ai serves the native installer and the
+# auto-updater's binaries (post-create.sh).
 .claude.ai
 api.anthropic.com
 console.anthropic.com

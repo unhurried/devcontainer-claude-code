@@ -29,7 +29,7 @@ Design notes:
 
 - Filtering is by hostname, so CDN IP changes cannot break it. The list is baked into the proxy image, which the dev container cannot reach, so a process inside cannot widen its own egress.
 - Isolation is structural (no default route), so root and `--privileged` nested containers are equally contained.
-- Claude Code's Sentry and Statsig telemetry are off (`DISABLE_ERROR_REPORTING`, `DISABLE_TELEMETRY` in `docker-compose.yml`); the auto-updater stays on.
+- Claude Code's Sentry and Statsig telemetry are off (`DISABLE_ERROR_REPORTING`, `DISABLE_TELEMETRY` in `docker-compose.yml`); the auto-updater stays on and fetches from `downloads.claude.ai`.
 - `NO_PROXY` covers localhost and the private ranges, so nested containers are reachable by address.
 - The proxy container drops every capability squid does not need and runs with `no-new-privileges`. Plain-HTTP requests leave without `Via` or `X-Forwarded-For`.
 
@@ -52,7 +52,7 @@ Settings, skills and the Playwright MCP server are installed at **user scope** (
 
 ## Rebuilds
 
-The image build itself is fast (it runs on the host's Docker daemon with direct internet). Everything after it goes through squid, so the large downloads are kept in named volumes: `~/.claude`, `/commandhistory`, `~/.cache/ms-playwright`, `~/.npm`, `~/.vscode-server`.
+The image build itself is fast (it runs on the host's Docker daemon with direct internet). Everything after it goes through squid, so the large downloads are kept in named volumes: `~/.claude`, `/commandhistory`, `~/.cache/ms-playwright`, `~/.npm`, `~/.vscode-server`, `~/.local`.
 
 - `docker volume ls | grep claude-code-` lists them; remove one to force that part to be fetched again.
 - The mount points are created in the `Dockerfile` so the volumes are owned by `vscode`, not root.
@@ -64,6 +64,8 @@ Two npm guardrails are set container-wide in `docker-compose.yml`:
 
 - `NPM_CONFIG_IGNORE_SCRIPTS=true` — install-time lifecycle scripts do not run. Use `npm rebuild <pkg>` for native addons that need them.
 - `NPM_CONFIG_MIN_RELEASE_AGE=7` — versions published within the last week are refused, which is why `post-create.sh` pins versions instead of `@latest`.
+
+Neither touches Claude Code: it is installed by Anthropic's native installer into `~/.local` (a persisted volume), not by npm, so the auto-updater is not subject to them. Under npm it could never update — Claude Code releases daily, and `NPM_CONFIG_IGNORE_SCRIPTS` would skip the postinstall that puts the real binary in place. `claude doctor` shows the install method; `~/.claude/.last-update-result.json` the last update attempt.
 
 ## Browser automation (Playwright MCP)
 

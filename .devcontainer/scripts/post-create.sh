@@ -10,6 +10,23 @@ if [ -f "$LEGACY_CONFIG" ] && [ ! -f "$PERSISTED_CONFIG" ]; then
   mv "$LEGACY_CONFIG" "$PERSISTED_CONFIG"
 fi
 
+# Claude Code, through Anthropic's native installer rather than the devcontainer
+# feature or `npm install -g`. The npm route cannot auto-update in this container, and
+# fails three ways in turn: NPM_CONFIG_MIN_RELEASE_AGE (docker-compose.yml) refuses
+# every release -- Claude Code ships daily, so `@latest` is never a week old;
+# NPM_CONFIG_IGNORE_SCRIPTS skips the postinstall that swaps the shell stub in bin/ for
+# the native binary, so an update that got through would leave `claude` unable to
+# start; and the feature installs as root, so vscode could not replace the package
+# anyway. The native install lives in ~/.local (share/claude/versions/, a bin/claude
+# symlink), owned by vscode, and updates in place from downloads.claude.ai, which
+# .claude.ai in the allowlist already covers.
+#
+# ~/.local is a persisted volume (devcontainer.json), so this only downloads once;
+# afterwards the auto-updater keeps it current and a rebuild finds it in place.
+if [ ! -x "$HOME/.local/bin/claude" ]; then
+  curl -fsSL https://claude.ai/install.sh | bash
+fi
+
 # Install the Playwright MCP server and its browser; sync-claude-config.sh registers it
 # with Claude Code. Not in the Dockerfile: npm exists only after the Node feature installs.
 #
