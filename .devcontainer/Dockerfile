@@ -1,12 +1,10 @@
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 
-SHELL ["bash", "-c"]
-
 ARG DEBIAN_FRONTEND=noninteractive
 
-# bubblewrap and socat are required by Claude Code's sandbox.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        # bubblewrap and socat are required by Claude Code's sandbox.
         bubblewrap \
         socat \
         build-essential \
@@ -26,21 +24,11 @@ RUN apt-get update \
         tree \
         man-db \
         bash-completion \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# SoX `rec` with the pulse backend, for Claude Code's /voice.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
+        # SoX `rec` with the pulse backend, for Claude Code's /voice.
         sox \
         libsox-fmt-pulse \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Chromium runtime deps for the Playwright MCP server. Installed here because
-# Playwright itself only arrives after the Node feature runs.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
+        # Chromium runtime deps for the Playwright MCP server. Installed here because
+        # Playwright itself only arrives after the Node feature runs.
         libnss3 \
         libnspr4 \
         libdbus-1-3 \
@@ -68,12 +56,13 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN echo 'PS1="\[\033[01;34m\]\W\[\033[00m\] $ "' >> /home/vscode/.bashrc
-
-RUN mkdir -p /commandhistory \
-    && touch /commandhistory/.bash_history \
-    && chown -R vscode:vscode /commandhistory \
-    && echo "export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" >> /home/vscode/.bashrc
+# Prompt, and a persisted bash history (/commandhistory is a volume).
+RUN printf '%s\n' \
+        'PS1="\[\033[01;34m\]\W\[\033[00m\] $ "' \
+        "export PROMPT_COMMAND='history -a' HISTFILE=/commandhistory/.bash_history" \
+        >> /home/vscode/.bashrc \
+    && mkdir -p /commandhistory \
+    && touch /commandhistory/.bash_history
 
 # Create the volume mount points as vscode; ones docker creates itself are root-owned.
 RUN mkdir -p /home/vscode/.claude \
@@ -81,12 +70,7 @@ RUN mkdir -p /home/vscode/.claude \
              /home/vscode/.npm \
              /home/vscode/.vscode-server \
              /home/vscode/.local/bin \
-    && chown -R vscode:vscode \
-             /home/vscode/.claude \
-             /home/vscode/.cache \
-             /home/vscode/.npm \
-             /home/vscode/.vscode-server \
-             /home/vscode/.local
+    && chown -R vscode:vscode /home/vscode /commandhistory
 
 # The native installer puts `claude` here (post-create.sh).
 ENV PATH=/home/vscode/.local/bin:$PATH

@@ -26,15 +26,33 @@ printf 'FROM alpine:3.20\nRUN apk add --no-cache curl\n' \
 
 docker network create --internal "$NET_ISO" >/dev/null
 docker network create "$NET_EGR" >/dev/null
-docker run -d --name "$CTR" --network "$NET_ISO" --network-alias proxy "$IMG_PROXY" >/dev/null
-docker network connect "$NET_EGR" "$CTR"
 
-for _ in $(seq 30); do
-    if docker exec "$CTR" nc -z 127.0.0.1 3128 >/dev/null 2>&1; then break; fi
-    sleep 1
-done
+# start_proxy [extra docker run args...]: (re)start the proxy on both networks and
+# wait for squid to listen.
+start_proxy() {
+    docker rm -f "$CTR" >/dev/null 2>&1 || true
+    docker run -d --name "$CTR" --network "$NET_ISO" --network-alias proxy "$@" \
+        "$IMG_PROXY" >/dev/null
+    docker network connect "$NET_EGR" "$CTR"
+    for _ in $(seq 30); do
+        if docker exec "$CTR" nc -z 127.0.0.1 3128 >/dev/null 2>&1; then return; fi
+        sleep 1
+    done
+}
+start_proxy
 
 failures=0
+
+# report <label> <want> <got>
+report() {
+    local label="$1" want="$2" got="$3"
+    if [ "$got" = "$want" ]; then
+        printf 'ok   - %-34s %s\n' "$label" "$want"
+    else
+        printf 'FAIL - %-34s want %s, got %s\n' "$label" "$want" "$got" >&2
+        failures=$((failures + 1))
+    fi
+}
 
 # expect <allow|deny> <url> [extra curl args...]
 # Any docker run failure reads as `deny`; the `allow` cases run first and would catch that.
@@ -44,12 +62,7 @@ expect() {
     if docker run --rm --network "$NET_ISO" -e https_proxy=http://proxy:3128 \
         "$IMG_CLIENT" curl -s -o /dev/null --max-time 20 "$@" "$url" >/dev/null 2>&1
     then got=allow; else got=deny; fi
-    if [ "$got" = "$want" ]; then
-        printf 'ok   - %-34s %s\n' "$url" "$want"
-    else
-        printf 'FAIL - %-34s want %s, got %s\n' "$url" "$want" "$got" >&2
-        failures=$((failures + 1))
-    fi
+    report "$url" "$want" "$got"
 }
 
 # Leading-dot entries: apex and subdomains.
@@ -69,23 +82,12 @@ expect deny https://140.82.121.6/ -k
 
 # No route out without the proxy.
 if docker run --rm --network "$NET_ISO" "$IMG_CLIENT" \
-    curl -s -o /dev/null --max-time 10 https://api.github.com/zen >/dev/null 2>&1; then
-    printf 'FAIL - %-34s reachable with no proxy\n' "direct egress" >&2
-    failures=$((failures + 1))
-else
-    printf 'ok   - %-34s %s\n' "direct egress" "deny"
-fi
+    curl -s -o /dev/null --max-time 10 https://api.github.com/zen >/dev/null 2>&1
+then got=allow; else got=deny; fi
+report "direct egress" deny "$got"
 
 # PROXY_MODE=open lifts the allowlist; the raw-address deny stays.
-docker rm -f "$CTR" >/dev/null 2>&1 || true
-docker run -d --name "$CTR" --network "$NET_ISO" --network-alias proxy \
-    -e PROXY_MODE=open "$IMG_PROXY" >/dev/null
-docker network connect "$NET_EGR" "$CTR"
-for _ in $(seq 30); do
-    if docker exec "$CTR" nc -z 127.0.0.1 3128 >/dev/null 2>&1; then break; fi
-    sleep 1
-done
-
+start_proxy -e PROXY_MODE=open
 printf -- '-- PROXY_MODE=open --\n'
 expect allow https://www.google.com/
 expect allow https://example.com/

@@ -2,10 +2,10 @@ FROM alpine:3.22
 
 RUN apk add --no-cache squid
 
-COPY squid.conf /etc/squid/squid.conf
-COPY allowed-domains.txt /etc/squid/allowed-domains.txt
-COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod 0755 /usr/local/bin/entrypoint.sh
+COPY squid.conf access-mode.*.conf allowed-domains.txt /etc/squid/
+COPY --chmod=0755 entrypoint.sh /usr/local/bin/entrypoint.sh
 
-EXPOSE 3128
+# See .env.example. entrypoint.sh selects /etc/squid/access-mode.${PROXY_MODE}.conf.
+ENV PROXY_MODE=allowlist
+
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

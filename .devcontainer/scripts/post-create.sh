@@ -1,15 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Move a pre-CLAUDE_CONFIG_DIR ~/.claude.json into the persisted volume.
-# Never overwrite the volume's copy.
-LEGACY_CONFIG="$HOME/.claude.json"
-PERSISTED_CONFIG="$HOME/.claude/.claude.json"
-if [ -f "$LEGACY_CONFIG" ] && [ ! -f "$PERSISTED_CONFIG" ]; then
-  echo "Migrating $LEGACY_CONFIG into the persisted config volume"
-  mv "$LEGACY_CONFIG" "$PERSISTED_CONFIG"
-fi
-
 # Claude Code via the native installer, not npm or the devcontainer feature: those
 # cannot auto-update here (NPM_CONFIG_MIN_RELEASE_AGE rejects every daily release,
 # NPM_CONFIG_IGNORE_SCRIPTS skips the postinstall, and the feature installs as root).
@@ -28,9 +19,6 @@ MCP_VERSION=0.0.79
 # Global so the MCP server starts without a network fetch (no npx).
 npm install -g --prefer-offline "@playwright/mcp@${MCP_VERSION}"
 
-# Derived from the MCP package so the browser revision cannot drift from it.
-PW_VERSION="$(node -p "require('$(npm root -g)/@playwright/mcp/package.json').dependencies.playwright")"
-npm install -g --prefer-offline "playwright@${PW_VERSION}"
-
-# Browser only: OS deps come from the Dockerfile.
-playwright install chromium
+# Browser only: OS deps come from the Dockerfile. Uses the MCP package's own
+# playwright so the browser revision cannot drift from it.
+"$(npm root -g)/@playwright/mcp/node_modules/.bin/playwright" install chromium

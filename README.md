@@ -71,8 +71,8 @@ Neither touches Claude Code: it is installed by Anthropic's native installer int
 
 The [Playwright MCP](https://github.com/microsoft/playwright-mcp) server is registered at user scope. Chromium and its OS dependencies are installed automatically (`Dockerfile`, `post-create.sh`) and the browser is kept in a volume.
 
-- **Only allowlisted hosts are reachable.** Add a site to `allowed-domains.txt` and rebuild. Chromium ignores `HTTPS_PROXY`, so `--proxy-server=http://proxy:3128` is passed explicitly.
-- Upgrade: bump `MCP_VERSION` in `.devcontainer/scripts/post-create.sh` and rebuild. The Playwright version is derived from it.
+- **Only allowlisted hosts are reachable.** Add a site to `allowed-domains.txt` and rebuild. Chromium ignores `HTTPS_PROXY`, so it is passed explicitly as `--proxy-server`.
+- Upgrade: bump `MCP_VERSION` in `.devcontainer/scripts/post-create.sh` and rebuild. The browser is installed by the package's own Playwright, so it cannot drift.
 - Runs headless with `--no-sandbox`. `shm_size: 1gb` is set because Chromium crashes on Docker's default 64 MB `/dev/shm`.
 
 ## Voice input (`/voice`)

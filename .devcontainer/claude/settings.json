@@ -23,7 +23,6 @@
       "WebFetch(domain:docs.github.com)",
       "WebFetch(domain:docs.python.org)"
     ],
-    "deny": [],
     "ask": [
       "Bash(git push:*)",
       "Bash(sudo:*)"

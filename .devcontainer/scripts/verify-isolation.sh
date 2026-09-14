@@ -25,48 +25,40 @@ allowed_code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$ALLOWED_U
 if [ "$allowed_code" = 200 ]; then
     pass "allowed host reachable through the proxy ($ALLOWED_URL)"
 else
-    warn "allowed host NOT reachable through the proxy ($ALLOWED_URL, got ${allowed_code:-<none>}) - connectivity, not isolation"
+    warn "allowed host NOT reachable through the proxy ($ALLOWED_URL, got $allowed_code) - connectivity, not isolation"
 fi
 
-# 2. An unlisted host is refused by the proxy.
-#      curl exit 0      -> the ACL is not filtering
-#      "response 403"   -> the ACL is working
-#      anything else    -> the proxy could not be reached
-#    Output is captured, not piped: a refused CONNECT exits 56, and under pipefail
-#    that would fail the check. Under PROXY_MODE=open the host is expected to answer.
-denied_output="$(curl -sS --max-time 20 -o /dev/null "$DENIED_URL" 2>&1)"
-denied_rc=$?
+# 2. An unlisted host is refused by the proxy. http_connect is the proxy's answer to
+#    CONNECT: 403 = the ACL refused it, 200 = it let it through, 000 = no proxy.
+#    Under PROXY_MODE=open the host is expected to get through.
+denied_code="$(curl -s -o /dev/null -w '%{http_connect}' --max-time 20 "$DENIED_URL")"
 if [ "${PROXY_MODE:-allowlist}" = open ]; then
-    if [ "$denied_rc" -eq 0 ]; then
+    if [ "$denied_code" = 200 ]; then
         pass "unlisted host reachable through the proxy ($DENIED_URL) - PROXY_MODE=open, allowlist disabled"
     else
-        warn "PROXY_MODE=open but $DENIED_URL was not reachable: ${denied_output:-<no output>} - connectivity, not isolation"
+        warn "PROXY_MODE=open but $DENIED_URL was not reachable (CONNECT got $denied_code) - connectivity, not isolation"
     fi
-elif [ "$denied_rc" -eq 0 ]; then
+elif [ "$denied_code" = 200 ]; then
     fatal "unlisted host $DENIED_URL was REACHABLE through the proxy - the allowlist is not being enforced"
-elif printf '%s\n' "$denied_output" | grep -q 'response 403'; then
+elif [ "$denied_code" = 403 ]; then
     pass "unlisted host refused with 403 ($DENIED_URL)"
 else
-    warn "could not reach the proxy to test $DENIED_URL: ${denied_output:-<no output>} - connectivity, not isolation"
+    warn "could not reach the proxy to test $DENIED_URL (CONNECT got $denied_code) - connectivity, not isolation"
 fi
 
-# 3. With the proxy bypassed there is no route out.
-#    ALL_PROXY too: curl honours it as a catch-all.
-noproxy() { env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy \
-                -u ALL_PROXY -u all_proxy "$@"; }
-
-if noproxy curl -s -o /dev/null --max-time 10 "$ALLOWED_URL"; then
-    fatal "reached $ALLOWED_URL with the proxy bypassed - this container is NOT isolated"
-else
-    pass "no egress to a hostname with the proxy bypassed"
-fi
-
-# 3b. Same, against a literal address: check 3 also passes on a DNS failure.
-if noproxy curl -k -s -o /dev/null --max-time 10 "$DENIED_IP_URL"; then
-    fatal "reached $DENIED_IP_URL with the proxy bypassed - this container has a route out"
-else
-    pass "no egress to a raw address with the proxy bypassed"
-fi
+# 3. With the proxy bypassed there is no route out. --noproxy '*' ignores every
+#    proxy env var, ALL_PROXY included. Also against a literal address, so a DNS
+#    failure alone cannot make the hostname probe pass.
+direct() {
+    local url="$1" what="$2"
+    if curl --noproxy '*' -k -s -o /dev/null --max-time 10 "$url"; then
+        fatal "reached $url with the proxy bypassed - this container is NOT isolated"
+    else
+        pass "no egress to $what with the proxy bypassed"
+    fi
+}
+direct "$ALLOWED_URL" "a hostname"
+direct "$DENIED_IP_URL" "a raw address"
 
 if [ "$fatals" -ne 0 ]; then
     printf '\n%d isolation check(s) failed. Refusing to start.\n' "$fatals" >&2

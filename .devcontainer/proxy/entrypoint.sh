@@ -8,11 +8,8 @@ install -d -o squid -g squid /var/log/squid
 chown squid:squid /var/log/squid/access.log
 tail -F /var/log/squid/access.log &
 
-# PROXY_MODE=open replaces the allowlist rule with `allow all`.
-# Port limits and the raw-address deny stay in both modes.
-if [ "${PROXY_MODE:-allowlist}" = open ]; then
-    sed -i 's/^http_access allow allowed_domains$/http_access allow all/' /etc/squid/squid.conf
-fi
+# squid.conf includes this file; an unknown PROXY_MODE makes squid fail to start.
+ln -sf "/etc/squid/access-mode.${PROXY_MODE}.conf" /etc/squid/access-mode.conf
 
 # A stale pid file from a previous run makes squid exit FATAL.
 rm -f /run/squid.pid

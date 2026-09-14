@@ -24,7 +24,7 @@ mkdir -p "$WORKSPACE/repos"
 # Template keys win. A key removed from the template lingers until removed by hand.
 existing='{}'
 if [ -s "$SETTINGS" ]; then
-  if ! existing="$(jq -c . "$SETTINGS" 2>/dev/null)"; then
+  if ! existing="$(jq -S . "$SETTINGS" 2>/dev/null)"; then
     backup="$SETTINGS.invalid-$(date +%Y%m%d%H%M%S)"
     echo "WARN  - $SETTINGS is not valid JSON; moved to $backup" >&2
     mv "$SETTINGS" "$backup"
@@ -32,7 +32,7 @@ if [ -s "$SETTINGS" ]; then
   fi
 fi
 merged="$(jq -S --argjson existing "$existing" '$existing * .' "$TEMPLATE")"
-if [ "$(jq -S . <<<"$existing")" != "$merged" ]; then
+if [ "$existing" != "$merged" ]; then
   tmp="$(mktemp "$CONFIG_DIR/.settings.json.XXXXXX")"
   printf '%s\n' "$merged" > "$tmp"
   mv "$tmp" "$SETTINGS"
@@ -58,13 +58,14 @@ for src in "$WORKSPACE"/.devcontainer/claude/skills/*/; do
 done
 
 # --- MCP servers --------------------------------------------------------------------
-# Playwright. Chromium ignores HTTPS_PROXY, so the proxy is passed explicitly.
+# Playwright. Chromium ignores HTTPS_PROXY, so the proxy (set in docker-compose.yml)
+# is passed explicitly.
 MCP_NAME=playwright
 MCP_COMMAND=playwright-mcp
-MCP_ARGS=(--browser chromium --headless --no-sandbox --proxy-server=http://proxy:3128)
+MCP_ARGS=(--browser chromium --headless --no-sandbox "--proxy-server=${HTTPS_PROXY:?}")
 
 # `claude mcp add` refuses to overwrite, so compare first and replace only on change.
-want_args="$(printf '%s\n' "${MCP_ARGS[@]}" | jq -R . | jq -sc .)"
+want_args="$(jq -nc '$ARGS.positional' --args -- "${MCP_ARGS[@]}")"
 if ! jq -e --arg name "$MCP_NAME" --arg cmd "$MCP_COMMAND" --argjson args "$want_args" \
      '.mcpServers[$name] | .command == $cmd and .args == $args' \
      "$CONFIG_DIR/.claude.json" >/dev/null 2>&1; then

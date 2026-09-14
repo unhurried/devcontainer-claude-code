@@ -10,10 +10,11 @@ DEVCONTAINER_JSON="$HERE/../devcontainer.json"
 PROJECT=topotest
 ISO_NET="${PROJECT}_isolated"
 
+dc() { docker compose -p "$PROJECT" -f "$COMPOSE" "$@"; }
+
 cleanup() {
     # --rmi local: don't leave a topotest-proxy image behind on every run.
-    docker compose -p "$PROJECT" -f "$COMPOSE" down --remove-orphans --rmi local \
-        >/dev/null 2>&1 || true
+    dc down --remove-orphans --rmi local >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 cleanup
@@ -29,7 +30,7 @@ check() {
     fi
 }
 
-resolved="$(docker compose -p "$PROJECT" -f "$COMPOSE" config --format json)"
+resolved="$(dc config --format json)"
 q() { printf '%s' "$resolved" | jq -r "$1"; }
 
 check "isolated network is internal" true "$(q '.networks.isolated.internal')"
@@ -40,14 +41,13 @@ check "proxy service bridges both networks" egress,isolated \
     "$(q '.services.proxy.networks | keys | sort | join(",")')"
 
 # ${devcontainerId} only resolves in devcontainer.json.
-check "devcontainer.json mounts every volume with a \${devcontainerId} suffix" 6 \
-    "$(grep -c '^\s*"source=claude-code-[a-z-]\+-\${devcontainerId},target=' \
-        "$DEVCONTAINER_JSON" || true)"
+check "every devcontainer.json volume is per-devcontainer" 0 \
+    "$(grep 'type=volume' "$DEVCONTAINER_JSON" | grep -vc 'devcontainerId' || true)"
 check "compose file interpolates no \${devcontainerId}" 0 \
     "$(grep -v '^[[:space:]]*#' "$COMPOSE" | grep -c 'devcontainerId' || true)"
 
 # Only the proxy: the dev image takes minutes to build and is not needed here.
-docker compose -p "$PROJECT" -f "$COMPOSE" up -d --build proxy >/dev/null
+dc up -d --build proxy >/dev/null
 
 # A failed probe must not look like an empty route list.
 routes="$(docker run --rm --network "$ISO_NET" alpine:3.20 ip route)" || routes="PROBE-FAILED"
@@ -59,8 +59,8 @@ check "proxy is reachable by alias from the dev network" reached \
         sh -c 'nc -z proxy 3128 && echo reached' 2>/dev/null || true)"
 
 check "proxy container has egress" ok \
-    "$(docker compose -p "$PROJECT" -f "$COMPOSE" exec -T proxy \
-        sh -c 'nslookup api.github.com >/dev/null 2>&1 && echo ok' 2>/dev/null || true)"
+    "$(dc exec -T proxy sh -c 'nslookup api.github.com >/dev/null 2>&1 && echo ok' \
+        2>/dev/null || true)"
 
 if [ "$failures" -ne 0 ]; then
     printf '\n%d topology check(s) failed.\n' "$failures" >&2
