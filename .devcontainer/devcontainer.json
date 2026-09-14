@@ -1,26 +1,15 @@
 {
   "name": "devcontainer-claude-code",
-  // Compose, not a bare Dockerfile: the dev service sits on an internal network with no
-  // route out, and only the proxy bridges to the internet (see docker-compose.yml).
-  // runArgs is ignored under compose, so its former contents moved there; mounts and
-  // containerEnv are merged into the dev service and still work from here.
+  // Compose so the dev service sits on an internal network and only the proxy reaches
+  // the internet (see docker-compose.yml).
   "dockerComposeFile": "docker-compose.yml",
   "service": "dev",
   "workspaceFolder": "/workspaces/devcontainer-claude-code",
   "shutdownAction": "stopCompose",
   "remoteUser": "vscode",
-  // Persist state and caches across rebuilds; ${devcontainerId} is stable per
-  // workspace, so the same volumes are re-attached. Not in docker-compose.yml: the CLI
-  // substitutes that token only here (a compose file is passed through untouched), then
-  // merges these mounts into the dev service.
-  //
-  // The last four hold nothing that cannot be re-downloaded -- but downloading it is
-  // the slow part of a rebuild: the image build talks to the internet directly, while
-  // everything after it goes through squid, and that is where the ~650MB of Playwright
-  // browsers, the VS Code server payload and the ~200MB Claude Code binary (native
-  // install under ~/.local, see post-create.sh) come from. Their mount points are
-  // created in the Dockerfile so each volume is seeded vscode-owned; a mount point
-  // docker has to create itself belongs to root, and the tool writing there is not root.
+  // Persist state and download caches across rebuilds. Declared here, not in
+  // docker-compose.yml: ${devcontainerId} only resolves here. The mount points are
+  // created in the Dockerfile so they are vscode-owned.
   "mounts": [
     "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
@@ -29,11 +18,7 @@
     "source=claude-code-vscode-server-${devcontainerId},target=/home/vscode/.vscode-server,type=volume",
     "source=claude-code-local-${devcontainerId},target=/home/vscode/.local,type=volume"
   ],
-  // devcontainer-lock.json pins the features themselves; these pin what they install,
-  // which "latest" would otherwise re-resolve on every build that misses the cache --
-  // so a rebuild meant to fix something else can hand you a new major of Node instead.
-  // nodejs.org and python.org keep every release, so an old pin still builds. Bump
-  // these deliberately.
+  // Pinned so a rebuild does not silently pull a new major version. Bump deliberately.
   "features": {
     "ghcr.io/devcontainers/features/node:2": {
       "version": "26.8.1",
@@ -42,21 +27,17 @@
     "ghcr.io/devcontainers/features/python:1": {
       "version": "3.14.7"
     },
-    // Left unpinned on purpose: moby comes from apt, whose repo drops old versions, so
-    // an exact pin here is a rebuild that fails some months from now.
+    // Unpinned: apt drops old moby versions, so an exact pin breaks over time.
     "ghcr.io/devcontainers/features/docker-in-docker:4": {
       "version": "latest",
       "moby": true
     }
-    // Claude Code itself is not a feature: that one runs `npm install -g` as root, and
-    // the auto-updater then fails three ways (see post-create.sh). The native
-    // installer runs there instead, as vscode.
+    // Claude Code is installed by post-create.sh (native installer), not by the
+    // feature: the feature's npm install cannot auto-update here.
   },
   "postCreateCommand": "bash .devcontainer/scripts/post-create.sh ${containerWorkspaceFolder}",
-  // Fails container start only on a real isolation failure -- egress where there should
-  // be none, or a proxy not filtering. Unreachable network only warns. Then installs the
-  // Claude Code guardrails at user scope (see sync-claude-config.sh) -- on every start,
-  // so an edit to .devcontainer/claude/ needs no rebuild.
+  // Fails the start only on a real isolation failure, then syncs the Claude Code config
+  // so edits to .devcontainer/claude/ need no rebuild.
   "postStartCommand": "bash .devcontainer/scripts/verify-isolation.sh && bash .devcontainer/scripts/sync-claude-config.sh ${containerWorkspaceFolder}",
   "waitFor": "postStartCommand",
   "customizations": {
@@ -67,8 +48,7 @@
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
         "security.workspace.trust.enabled": false,
-        // Repositories cloned under repos/ are two levels down; the default depth (1)
-        // would leave them out of the Source Control view.
+        // Repositories under repos/ are two levels down.
         "git.repositoryScanMaxDepth": 2
       }
     }

@@ -1,6 +1,6 @@
 #!/bin/sh
-# squid drops to the `squid` user and cannot open the container's stdout pipe, so it
-# logs to a file and root tails it into `docker logs`.
+# squid runs as the `squid` user and cannot write to the container's stdout, so it
+# logs to a file that root tails into `docker logs`.
 set -e
 
 install -d -o squid -g squid /var/log/squid
@@ -8,15 +8,13 @@ install -d -o squid -g squid /var/log/squid
 chown squid:squid /var/log/squid/access.log
 tail -F /var/log/squid/access.log &
 
-# "open" (see ../.env.example) lifts the domain allowlist by rewriting its one allow
-# rule; any other value, including unset, keeps the allowlist. Everything else in
-# squid.conf -- port limits, the raw-address deny -- applies in both modes.
+# PROXY_MODE=open replaces the allowlist rule with `allow all`.
+# Port limits and the raw-address deny stay in both modes.
 if [ "${PROXY_MODE:-allowlist}" = open ]; then
     sed -i 's/^http_access allow allowed_domains$/http_access allow all/' /etc/squid/squid.conf
 fi
 
-# The pid file survives a restart, and `exec` makes squid PID 1, so a stale file always
-# names a live pid -- squid reads that as "already running" and exits FATAL, forever.
+# A stale pid file from a previous run makes squid exit FATAL.
 rm -f /run/squid.pid
 
 exec squid -N -f /etc/squid/squid.conf

@@ -1,20 +1,17 @@
 #!/usr/bin/env bash
-# Assert the network shape compose actually builds: the dev network has no route out,
-# only the proxy bridges to it, and the persisted volumes are declared where
-# ${devcontainerId} can resolve.
+# Assert the compose topology: dev has no route out, only the proxy bridges to the
+# internet, and the volumes are declared where ${devcontainerId} resolves.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE="$HERE/../docker-compose.yml"
 DEVCONTAINER_JSON="$HERE/../devcontainer.json"
-# A distinct project name, not the compose file's own `name:`: without -p, `down`
-# would stop the live devcontainer and its proxy.
+# Separate project name so `down` does not stop the live devcontainer.
 PROJECT=topotest
 ISO_NET="${PROJECT}_isolated"
 
 cleanup() {
-    # --rmi local drops the proxy image built under this project name; without it every
-    # run leaves another topotest-proxy:latest behind.
+    # --rmi local: don't leave a topotest-proxy image behind on every run.
     docker compose -p "$PROJECT" -f "$COMPOSE" down --remove-orphans --rmi local \
         >/dev/null 2>&1 || true
 }
@@ -42,19 +39,17 @@ check "dev service is on the isolated network only" isolated \
 check "proxy service bridges both networks" egress,isolated \
     "$(q '.services.proxy.networks | keys | sort | join(",")')"
 
-# The CLI substitutes ${devcontainerId} only in devcontainer.json, so assert every
-# mount lives there and the compose file carries no such token.
+# ${devcontainerId} only resolves in devcontainer.json.
 check "devcontainer.json mounts every volume with a \${devcontainerId} suffix" 6 \
     "$(grep -c '^\s*"source=claude-code-[a-z-]\+-\${devcontainerId},target=' \
         "$DEVCONTAINER_JSON" || true)"
 check "compose file interpolates no \${devcontainerId}" 0 \
     "$(grep -v '^[[:space:]]*#' "$COMPOSE" | grep -c 'devcontainerId' || true)"
 
-# Only the proxy: building the dev image takes minutes and proves nothing here.
+# Only the proxy: the dev image takes minutes to build and is not needed here.
 docker compose -p "$PROJECT" -f "$COMPOSE" up -d --build proxy >/dev/null
 
-# Mark the probe's own failure explicitly: comparing raw output against "" would make
-# a missing image or daemon error look like the property holding.
+# A failed probe must not look like an empty route list.
 routes="$(docker run --rm --network "$ISO_NET" alpine:3.20 ip route)" || routes="PROBE-FAILED"
 check "dev network has no default route" "" \
     "$(printf '%s\n' "$routes" | grep -E '^default|PROBE-FAILED' || true)"

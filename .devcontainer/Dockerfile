@@ -4,8 +4,7 @@ SHELL ["bash", "-c"]
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# bubblewrap builds the namespace for Claude Code's sandbox, socat proxies its
-# network out. Without either, Claude Code runs commands unsandboxed.
+# bubblewrap and socat are required by Claude Code's sandbox.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bubblewrap \
@@ -30,9 +29,7 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Claude Code's /voice records through SoX's `rec`; the pulse backend is what reaches
-# WSLg's PulseServer (mounted in docker-compose.yml). Without the backend `rec` finds no
-# device, exits non-zero even for --version, and voice mode reports no recorder.
+# SoX `rec` with the pulse backend, for Claude Code's /voice.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         sox \
@@ -40,10 +37,8 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Chromium runtime deps for the Playwright MCP server (registered by
-# scripts/sync-claude-config.sh). From apt rather
-# than `playwright install --with-deps`, since Playwright isn't installed until the Node
-# feature runs after this build. Mirrors Playwright's Ubuntu 24.04 list (`t64` = noble).
+# Chromium runtime deps for the Playwright MCP server. Installed here because
+# Playwright itself only arrives after the Node feature runs.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         libnss3 \
@@ -80,9 +75,7 @@ RUN mkdir -p /commandhistory \
     && chown -R vscode:vscode /commandhistory \
     && echo "export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" >> /home/vscode/.bashrc
 
-# Seed the paths devcontainer.json mounts volumes onto, as vscode. A named volume takes
-# the ownership of the image directory it covers; one docker has to create itself comes
-# out root-owned, and none of these are written as root.
+# Create the volume mount points as vscode; ones docker creates itself are root-owned.
 RUN mkdir -p /home/vscode/.claude \
              /home/vscode/.cache/ms-playwright \
              /home/vscode/.npm \
@@ -95,8 +88,7 @@ RUN mkdir -p /home/vscode/.claude \
              /home/vscode/.vscode-server \
              /home/vscode/.local
 
-# Where the native installer puts `claude` (post-create.sh). ~/.profile adds it too,
-# but only for login shells; postStartCommand and VS Code tasks are not.
+# The native installer puts `claude` here (post-create.sh).
 ENV PATH=/home/vscode/.local/bin:$PATH
 
 # Help Claude Code orient that it's running in a devcontainer

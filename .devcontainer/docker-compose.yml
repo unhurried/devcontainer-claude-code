@@ -1,9 +1,8 @@
 name: devcontainer-claude-code
 
 networks:
-  # internal:true gives this network no gateway, so traffic cannot leave it. That is
-  # the isolation -- not iptables, so root or a nested --privileged container has
-  # nothing to undo.
+  # internal: true means no gateway, so nothing can leave this network.
+  # That is the isolation -- not iptables.
   isolated:
     internal: true
   egress:
@@ -18,11 +17,7 @@ services:
           - proxy
       egress:
     restart: unless-stopped
-    # The one process facing the internet, so it keeps only what entrypoint.sh and squid
-    # actually use: CHOWN, FOWNER and DAC_OVERRIDE for the log setup as root (the
-    # package ships /var/log/squid owned by squid, and `install -d` chmods it),
-    # SETUID/SETGID for squid to drop to its own user. 3128 is unprivileged, so no
-    # NET_BIND_SERVICE.
+    # Only what entrypoint.sh (log setup as root) and squid (dropping to its own user) need.
     cap_drop:
       - ALL
     cap_add:
@@ -34,8 +29,7 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
-      # See .env.example: "allowlist" (default) restricts squid to allowed-domains.txt,
-      # "open" lifts it without touching the topology below.
+      # See .env.example.
       PROXY_MODE: ${PROXY_MODE:-allowlist}
     healthcheck:
       test: ["CMD", "nc", "-z", "127.0.0.1", "3128"]
@@ -48,10 +42,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    # The docker-in-docker feature would set this anyway (as it does init: true and the
-    # /var/lib/docker volume, left implicit); stated because the container is useless
-    # without it. Isolation holds: privileged grants capabilities inside this
-    # container's own network namespace, which still has no route out.
+    # Required by docker-in-docker. Safe: this network still has no route out.
     privileged: true
     networks:
       - isolated
@@ -60,52 +51,37 @@ services:
         condition: service_healthy
     # Chromium (Playwright MCP) crashes with the default 64MB /dev/shm.
     shm_size: 1gb
-    # devcontainer.json's overrideCommand defaults to false for compose, so the
-    # service must stay up on its own.
+    # Keeps the service up; devcontainer.json does not override the command for compose.
     command: sleep infinity
     environment:
-      # devcontainer.json's containerEnv would work too (the CLI merges it here), but
-      # every variable lives in one place.
+      # All env vars live here, not in devcontainer.json's containerEnv.
       #
-      # Claude Code's global config is ${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json; pointing
-      # it at the mounted ~/.claude keeps it in the persisted volume.
+      # Keeps .claude.json inside the persisted ~/.claude volume.
       CLAUDE_CONFIG_DIR: /home/vscode/.claude
-      # Playwright's own Linux default, stated so the persisted volume mounted at this
-      # path (devcontainer.json) and the tool cannot drift apart.
+      # Must match the volume mount in devcontainer.json.
       PLAYWRIGHT_BROWSERS_PATH: /home/vscode/.cache/ms-playwright
-      # Not used to reach the proxy -- only read by verify-isolation.sh, to tell an
-      # expected open-mode success from a filtering failure.
+      # Read only by verify-isolation.sh.
       PROXY_MODE: ${PROXY_MODE:-allowlist}
-      # Claude Code's /voice records through SoX's `rec`, which needs a PulseAudio
-      # server; see the bind mount below.
+      # For /voice; see the bind mount below.
       PULSE_SERVER: unix:/mnt/wslg/PulseServer
-      # Sentry error reports and Statsig telemetry, so neither host needs to be in the
-      # allowlist. Not CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: that also switches off
-      # the auto-updater, which settings.json turns on.
+      # Keeps Sentry and Statsig out of the allowlist. Not
+      # CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: that would also disable auto-updates.
       DISABLE_ERROR_REPORTING: "1"
       DISABLE_TELEMETRY: "1"
-      # npm guardrails for every invocation: a project .npmrc is read only inside its
-      # own tree and never in global mode, so it covered neither `npm install -g` in
-      # post-create.sh nor a repository under repos/ with a package.json of its own.
-      # ignore-scripts skips install-time scripts (`npm rebuild` runs them on demand for
-      # native modules); min-release-age refuses versions published in the last 7 days.
+      # As env vars so they apply everywhere, including `npm install -g` and repos/.
+      # ignore-scripts: no install-time scripts. min-release-age: no versions under 7 days old.
       NPM_CONFIG_IGNORE_SCRIPTS: "true"
       NPM_CONFIG_MIN_RELEASE_AGE: "7"
       HTTP_PROXY: http://proxy:3128
       HTTPS_PROXY: http://proxy:3128
       http_proxy: http://proxy:3128
       https_proxy: http://proxy:3128
-      # The private ranges keep containers started by the in-container daemon reachable
-      # by address; without them squid would be asked to dial them and refuse.
+      # Private ranges keep containers started by the inner docker daemon reachable.
       NO_PROXY: localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
       no_proxy: localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
     volumes:
-      # The two persisted named volumes are devcontainer.json `mounts`, not here:
-      # ${devcontainerId} in their names resolves only there. The CLI merges them in.
+      # Named volumes are in devcontainer.json: ${devcontainerId} only resolves there.
       - ..:/workspaces/devcontainer-claude-code:cached
-      # The host's PulseAudio socket, for /voice. VS Code forwards X11 and Wayland into
-      # a devcontainer but never audio, so it has to be bind-mounted -- and a bind
-      # source that does not exist fails the container start, hence the /dev/null
-      # default: with it `rec` simply finds no recorder. Point VOICE_PULSE_SOCKET at
-      # the real socket in .env (see .env.example); on WSL2 that is /mnt/wslg/PulseServer.
+      # Host PulseAudio socket for /voice (VS Code forwards no audio). Defaults to
+      # /dev/null because a missing bind source fails the start. Set in .env.
       - ${VOICE_PULSE_SOCKET:-/dev/null}:/mnt/wslg/PulseServer

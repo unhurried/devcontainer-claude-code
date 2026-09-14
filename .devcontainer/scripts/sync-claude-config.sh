@@ -1,12 +1,7 @@
 #!/usr/bin/env bash
-# Install the Claude Code guardrails at user scope. Runs as postStartCommand so an edit
-# to the tracked sources below takes effect on the next container start, no rebuild.
-#
-# Why user scope: project-scope settings (.claude/settings.json, .mcp.json) are read
-# from the directory Claude Code is started in, and nothing else. Started in repos/ or
-# inside one of the repositories cloned there, this repo's project settings would not
-# apply -- so the sandbox, permission mode and MCP server that make this a safe
-# environment live in ~/.claude instead, which every start location sees.
+# Install the Claude Code config at user scope (~/.claude), so it applies wherever
+# Claude Code is started -- including inside repos/. Runs on every container start,
+# so edits need no rebuild.
 #
 # Sources (tracked)                     Destination (persisted volume)
 #   .devcontainer/claude/settings.json    ~/.claude/settings.json      merged in
@@ -19,19 +14,14 @@ CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 TEMPLATE="$WORKSPACE/.devcontainer/claude/settings.json"
 SETTINGS="$CONFIG_DIR/settings.json"
 
-# Where repositories to work on are cloned. Gitignored, and created here rather than
-# tracked with a .gitkeep: the negation that would need (`repos/*` + `!repos/.gitkeep`)
-# makes ripgrep -- and with it Claude Code's search -- skip the repositories even when
-# started from inside repos/. A plain `repos/` only hides them from a search started at
-# this repo's root.
+# Where repositories to work on are cloned. Created here rather than tracked with a
+# .gitkeep: the .gitignore negation that needs would make ripgrep (and Claude Code's
+# search) skip the repositories.
 mkdir -p "$WORKSPACE/repos"
 
 # --- settings.json ------------------------------------------------------------------
-# Merged, not copied: Claude Code writes its own keys here (model, theme, voice, ...)
-# and those must survive. The template wins for every key it defines -- arrays included,
-# so the permission lists are exactly the tracked ones -- and everything else is kept.
-# Consequence: a key *removed* from the template lingers in ~/.claude/settings.json
-# until removed there by hand.
+# Merged, not copied: Claude Code writes its own keys (model, theme, ...) here.
+# Template keys win. A key removed from the template lingers until removed by hand.
 existing='{}'
 if [ -s "$SETTINGS" ]; then
   if ! existing="$(jq -c . "$SETTINGS" 2>/dev/null)"; then
@@ -50,9 +40,8 @@ if [ "$(jq -S . <<<"$existing")" != "$merged" ]; then
 fi
 
 # --- skills -------------------------------------------------------------------------
-# Symlinked, not copied: Claude Code only reads skills, so an edit to the tracked source
-# is live at once. An existing real directory of the same name is someone's own skill
-# and is left alone (with a warning) rather than replaced.
+# Symlinked so edits to the source are live. A real directory of the same name is
+# someone's own skill and is left alone.
 mkdir -p "$CONFIG_DIR/skills"
 for src in "$WORKSPACE"/.devcontainer/claude/skills/*/; do
   [ -d "$src" ] || continue
@@ -69,14 +58,12 @@ for src in "$WORKSPACE"/.devcontainer/claude/skills/*/; do
 done
 
 # --- MCP servers --------------------------------------------------------------------
-# Playwright, as .mcp.json used to define it. Chromium does not read HTTPS_PROXY, so the
-# proxy is passed explicitly. The server binary is installed by post-create.sh.
+# Playwright. Chromium ignores HTTPS_PROXY, so the proxy is passed explicitly.
 MCP_NAME=playwright
 MCP_COMMAND=playwright-mcp
 MCP_ARGS=(--browser chromium --headless --no-sandbox --proxy-server=http://proxy:3128)
 
-# `claude mcp add` refuses to touch an existing entry, so compare first and replace only
-# on a real change; that keeps a routine start from rewriting .claude.json.
+# `claude mcp add` refuses to overwrite, so compare first and replace only on change.
 want_args="$(printf '%s\n' "${MCP_ARGS[@]}" | jq -R . | jq -sc .)"
 if ! jq -e --arg name "$MCP_NAME" --arg cmd "$MCP_COMMAND" --argjson args "$want_args" \
      '.mcpServers[$name] | .command == $cmd and .args == $args' \

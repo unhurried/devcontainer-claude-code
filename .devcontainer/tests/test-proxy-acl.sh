@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Exercise the proxy's allowlist against a live squid, on throwaway networks mirroring
-# docker-compose.yml. Needs a Docker daemon (DinD). Also covers PROXY_MODE=open (see
-# ../.env.example), where the denied cases should flip to allowed.
+# Exercise the allowlist against a live squid on throwaway networks. Needs Docker.
+# Also covers PROXY_MODE=open.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,8 +20,7 @@ trap cleanup EXIT
 cleanup
 
 docker build -q -t "$IMG_PROXY" "$PROXY_DIR" >/dev/null
-# busybox wget sends an absolute-URI GET instead of CONNECT, which squid cannot serve
-# for https, so the client needs real curl.
+# busybox wget cannot CONNECT, so the client needs real curl.
 printf 'FROM alpine:3.20\nRUN apk add --no-cache curl\n' \
     | docker build -q -t "$IMG_CLIENT" - >/dev/null
 
@@ -39,8 +37,7 @@ done
 failures=0
 
 # expect <allow|deny> <url> [extra curl args...]
-# Any docker run failure reads as `deny`; safe only because the `expect allow` cases
-# run first on the same image and network and would fail loudly.
+# Any docker run failure reads as `deny`; the `allow` cases run first and would catch that.
 expect() {
     local want="$1" url="$2"; shift 2
     local got
@@ -55,24 +52,22 @@ expect() {
     fi
 }
 
-# Leading-dot entries must cover the apex and arbitrary subdomains.
+# Leading-dot entries: apex and subdomains.
 expect allow https://api.github.com/zen
 expect allow https://github.com/
 expect allow https://codeload.github.com/
 expect allow https://raw.githubusercontent.com/
-# Claude Code's installer and auto-updater (post-create.sh) live under .claude.ai.
 expect allow https://downloads.claude.ai/
-# Exact entries must match.
+# Exact entries.
 expect allow https://registry.npmjs.org/
 expect allow https://pypi.org/
-# Unlisted names must be refused even when they share infrastructure with a listed one
-# (storage.googleapis.com is allowed; this is not).
+# Unlisted names, even ones sharing infrastructure with a listed one.
 expect deny https://www.google.com/
 expect deny https://example.com/
 # A raw address must not bypass name-based filtering.
 expect deny https://140.82.121.6/ -k
 
-# With no proxy at all there is no route out of the internal network.
+# No route out without the proxy.
 if docker run --rm --network "$NET_ISO" "$IMG_CLIENT" \
     curl -s -o /dev/null --max-time 10 https://api.github.com/zen >/dev/null 2>&1; then
     printf 'FAIL - %-34s reachable with no proxy\n' "direct egress" >&2
@@ -81,9 +76,7 @@ else
     printf 'ok   - %-34s %s\n' "direct egress" "deny"
 fi
 
-# PROXY_MODE=open must lift the allowlist without opening a route around the proxy:
-# restart the same image in open mode and re-run the denied hostnames as allowed. The
-# raw-address deny is not part of the allowlist and stays.
+# PROXY_MODE=open lifts the allowlist; the raw-address deny stays.
 docker rm -f "$CTR" >/dev/null 2>&1 || true
 docker run -d --name "$CTR" --network "$NET_ISO" --network-alias proxy \
     -e PROXY_MODE=open "$IMG_PROXY" >/dev/null
