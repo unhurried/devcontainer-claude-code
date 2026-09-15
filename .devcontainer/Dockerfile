@@ -2,6 +2,8 @@ FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+# Only what the base image (common-utils: git, curl, jq, less, nano, unzip, tree, ...)
+# does not already ship.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         # bubblewrap and socat are required by Claude Code's sandbox.
@@ -9,21 +11,6 @@ RUN apt-get update \
         socat \
         build-essential \
         file \
-        sed \
-        iproute2 \
-        jq \
-        ca-certificates \
-        gnupg2 \
-        less \
-        nano \
-        vim-tiny \
-        unzip \
-        zip \
-        bzip2 \
-        xz-utils \
-        tree \
-        man-db \
-        bash-completion \
         # SoX `rec` with the pulse backend, for Claude Code's /voice.
         sox \
         libsox-fmt-pulse \
