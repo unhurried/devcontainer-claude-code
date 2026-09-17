@@ -9,13 +9,16 @@
   "remoteUser": "vscode",
   // Persist state and download caches across rebuilds. Declared here, not in
   // docker-compose.yml: ${devcontainerId} only resolves here. The mount points are
-  // created in the Dockerfile so they are vscode-owned.
+  // created in the Dockerfile so they are vscode-owned. A target must hold only
+  // regenerable cache: a volume also masks any file its owner writes just once.
   "mounts": [
     "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
     "source=claude-code-playwright-${devcontainerId},target=/home/vscode/.cache/ms-playwright,type=volume",
     "source=claude-code-npm-${devcontainerId},target=/home/vscode/.npm,type=volume",
-    "source=claude-code-vscode-server-${devcontainerId},target=/home/vscode/.vscode-server,type=volume",
+    // extensions/ only: a volume over data/ would freeze customizations.vscode.settings
+    // at the first create. See README (Rebuilds).
+    "source=claude-code-vscode-extensions-${devcontainerId},target=/home/vscode/.vscode-server/extensions,type=volume",
     "source=claude-code-local-${devcontainerId},target=/home/vscode/.local,type=volume"
   ],
   // Pinned so a rebuild does not silently pull a new major version. Bump deliberately.

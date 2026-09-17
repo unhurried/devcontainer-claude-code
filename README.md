@@ -52,10 +52,12 @@ Settings, skills and the Playwright MCP server are installed at **user scope** (
 
 ## Rebuilds
 
-The image build itself is fast (it runs on the host's Docker daemon with direct internet). Everything after it goes through squid, so the large downloads are kept in named volumes: `~/.claude`, `/commandhistory`, `~/.cache/ms-playwright`, `~/.npm`, `~/.vscode-server`, `~/.local`.
+The image build itself is fast (it runs on the host's Docker daemon with direct internet). Everything after it goes through squid, so the large downloads are kept in named volumes: `~/.claude`, `/commandhistory`, `~/.cache/ms-playwright`, `~/.npm`, `~/.vscode-server/extensions`, `~/.local`.
 
 - `docker volume ls | grep claude-code-` lists them; remove one to force that part to be fetched again.
 - The mount points are created in the `Dockerfile` so the volumes are owned by `vscode`, not root.
+- Only `extensions/` of `~/.vscode-server` is persisted. VS Code writes `data/Machine/settings.json` from `customizations.vscode.settings` only when the file is absent, so persisting `data/` would pin those settings to whatever the first create wrote. `bin/` needs no volume — it is symlinks into the `vscode` volume Dev Containers manages itself — and `extensionsCache/` only duplicates `extensions/`. The cost is that `data/User/globalStorage` (per-extension state) resets on rebuild; Claude Code is unaffected, its state is in `~/.claude`.
+- That volume was renamed when it was narrowed, so existing setups keep an orphaned `claude-code-vscode-server-*`. Remove it; the next rebuild refetches the extensions once (~500 MB through squid).
 - Node and Python are pinned in `devcontainer.json`; bump deliberately. Docker-in-Docker tracks `latest` because moby's apt repo drops old versions.
 
 ## Package installs

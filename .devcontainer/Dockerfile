@@ -55,7 +55,7 @@ RUN printf '%s\n' \
 RUN mkdir -p /home/vscode/.claude \
              /home/vscode/.cache/ms-playwright \
              /home/vscode/.npm \
-             /home/vscode/.vscode-server \
+             /home/vscode/.vscode-server/extensions \
              /home/vscode/.local/bin \
     && chown -R vscode:vscode /home/vscode /commandhistory
 
