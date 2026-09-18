@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Assert the compose topology: dev has no route out, only the proxy bridges to the
-# internet, and the volumes are declared where ${devcontainerId} resolves.
+# internet, and the volumes are declared where ${devcontainerId} resolves. Needs Docker.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -13,7 +13,7 @@ ISO_NET="${PROJECT}_isolated"
 dc() { docker compose -p "$PROJECT" -f "$COMPOSE" "$@"; }
 
 cleanup() {
-    # --rmi local: don't leave a topotest-proxy image behind on every run.
+    # --rmi local: no leftover topotest-proxy image.
     dc down --remove-orphans --rmi local >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -46,7 +46,7 @@ check "every devcontainer.json volume is per-devcontainer" 0 \
 check "compose file interpolates no \${devcontainerId}" 0 \
     "$(grep -v '^[[:space:]]*#' "$COMPOSE" | grep -c 'devcontainerId' || true)"
 
-# Only the proxy: the dev image takes minutes to build and is not needed here.
+# Only the proxy: the dev image takes minutes to build.
 dc up -d --build proxy >/dev/null
 
 # A failed probe must not look like an empty route list.

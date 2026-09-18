@@ -1,27 +1,24 @@
 {
   "name": "devcontainer-claude-code",
-  // Compose so the dev service sits on an internal network and only the proxy reaches
-  // the internet (see docker-compose.yml).
+  // Compose: dev sits on an internal network, only the proxy reaches the internet.
   "dockerComposeFile": "docker-compose.yml",
   "service": "dev",
   "workspaceFolder": "/workspaces/devcontainer-claude-code",
   "shutdownAction": "stopCompose",
   "remoteUser": "vscode",
-  // Persist state and download caches across rebuilds. Declared here, not in
-  // docker-compose.yml: ${devcontainerId} only resolves here. The mount points are
-  // created in the Dockerfile so they are vscode-owned. A target must hold only
-  // regenerable cache: a volume also masks any file its owner writes just once.
+  // Persisted across rebuilds. Here, not in docker-compose.yml: ${devcontainerId} only
+  // resolves here. Targets must hold only regenerable state (see README, Rebuilds).
   "mounts": [
     "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
     "source=claude-code-playwright-${devcontainerId},target=/home/vscode/.cache/ms-playwright,type=volume",
     "source=claude-code-npm-${devcontainerId},target=/home/vscode/.npm,type=volume",
     // extensions/ only: a volume over data/ would freeze customizations.vscode.settings
-    // at the first create. See README (Rebuilds).
+    // at the first create.
     "source=claude-code-vscode-extensions-${devcontainerId},target=/home/vscode/.vscode-server/extensions,type=volume",
     "source=claude-code-local-${devcontainerId},target=/home/vscode/.local,type=volume"
   ],
-  // Pinned so a rebuild does not silently pull a new major version. Bump deliberately.
+  // Pinned; bump deliberately.
   "features": {
     "ghcr.io/devcontainers/features/node:2": {
       "version": "26.8.1"
@@ -29,17 +26,15 @@
     "ghcr.io/devcontainers/features/python:1": {
       "version": "3.14.7"
     },
-    // Unpinned: apt drops old moby versions, so an exact pin breaks over time.
+    // Unpinned: moby's apt repo drops old versions.
     "ghcr.io/devcontainers/features/docker-in-docker:4": {
       "version": "latest",
       "moby": true
     }
-    // Claude Code is installed by post-create.sh (native installer), not by the
-    // feature: the feature's npm install cannot auto-update here.
+    // No Claude Code feature: its npm install cannot auto-update here (post-create.sh).
   },
   "postCreateCommand": "bash .devcontainer/scripts/post-create.sh ${containerWorkspaceFolder}",
-  // Fails the start only on a real isolation failure, then syncs the Claude Code config
-  // so edits to .devcontainer/claude/ need no rebuild.
+  // Blocks the editor from attaching (waitFor) when isolation is broken.
   "postStartCommand": "bash .devcontainer/scripts/verify-isolation.sh && bash .devcontainer/scripts/sync-claude-config.sh ${containerWorkspaceFolder}",
   "waitFor": "postStartCommand",
   "customizations": {
@@ -50,7 +45,7 @@
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
         "security.workspace.trust.enabled": false,
-        // Repositories under repos/ are two levels down.
+        // Finds the repositories under repos/.
         "git.repositoryScanMaxDepth": 2
       }
     }

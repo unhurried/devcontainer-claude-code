@@ -2,20 +2,19 @@ FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Only what the base image (common-utils: git, curl, jq, less, nano, unzip, tree, ...)
-# does not already ship.
+# Only what the base image does not already ship (git, curl, jq, ...).
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        # bubblewrap and socat are required by Claude Code's sandbox.
+        # Claude Code's sandbox.
         bubblewrap \
         socat \
         build-essential \
         file \
-        # SoX `rec` with the pulse backend, for Claude Code's /voice.
+        # SoX `rec` with the pulse backend, for /voice.
         sox \
         libsox-fmt-pulse \
-        # Chromium runtime deps for the Playwright MCP server. Installed here because
-        # Playwright itself only arrives after the Node feature runs.
+        # Chromium runtime deps for the Playwright MCP server (post-create.sh installs
+        # the browser; `playwright install-deps` needs npm, which arrives later).
         libnss3 \
         libnspr4 \
         libdbus-1-3 \
@@ -51,7 +50,7 @@ RUN printf '%s\n' \
     && mkdir -p /commandhistory \
     && touch /commandhistory/.bash_history
 
-# Create the volume mount points as vscode; ones docker creates itself are root-owned.
+# Volume mount points; ones docker creates itself are root-owned.
 RUN mkdir -p /home/vscode/.claude \
              /home/vscode/.cache/ms-playwright \
              /home/vscode/.npm \
@@ -59,8 +58,8 @@ RUN mkdir -p /home/vscode/.claude \
              /home/vscode/.local/bin \
     && chown -R vscode:vscode /home/vscode /commandhistory
 
-# The native installer puts `claude` here (post-create.sh).
+# post-create.sh installs `claude` here.
 ENV PATH=/home/vscode/.local/bin:$PATH
 
-# Help Claude Code orient that it's running in a devcontainer
+# Lets Claude Code detect the devcontainer.
 ENV DEVCONTAINER=true

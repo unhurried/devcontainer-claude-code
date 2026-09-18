@@ -1,8 +1,7 @@
 name: devcontainer-claude-code
 
 networks:
-  # internal: true means no gateway, so nothing can leave this network.
-  # That is the isolation -- not iptables.
+  # internal: no gateway, so nothing leaves this network. That is the whole isolation.
   isolated:
     internal: true
   egress:
@@ -11,12 +10,11 @@ services:
   proxy:
     build:
       context: ./proxy
-    # The service name is its DNS name on both networks; dev reaches it as `proxy`.
     networks:
       - isolated
       - egress
     restart: unless-stopped
-    # Only what entrypoint.sh (log setup as root) and squid (dropping to its own user) need.
+    # Only what entrypoint.sh (chown as root) and squid (dropping to its user) need.
     cap_drop:
       - ALL
     cap_add:
@@ -35,7 +33,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-      # dev waits on this; squid is up well under a second, so probe quickly at first.
+      # dev waits on this; squid is up in under a second.
       start_period: 5s
       start_interval: 1s
 
@@ -51,11 +49,10 @@ services:
         condition: service_healthy
     # Chromium (Playwright MCP) crashes with the default 64MB /dev/shm.
     shm_size: 1gb
-    # Keeps the service up; devcontainer.json does not override the command for compose.
+    # Keeps the container up; overrideCommand does not apply to compose.
     command: sleep infinity
+    # All env vars live here, not in devcontainer.json's containerEnv.
     environment:
-      # All env vars live here, not in devcontainer.json's containerEnv.
-      #
       # Keeps .claude.json inside the persisted ~/.claude volume.
       CLAUDE_CONFIG_DIR: /home/vscode/.claude
       # Read only by verify-isolation.sh.
@@ -66,11 +63,10 @@ services:
       # CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: that would also disable auto-updates.
       DISABLE_ERROR_REPORTING: "1"
       DISABLE_TELEMETRY: "1"
-      # As env vars so they apply everywhere, including `npm install -g` and repos/.
-      # ignore-scripts: no install-time scripts. min-release-age: no versions under 7 days old.
+      # npm guardrails (see README, Package installs). Env vars so they apply in repos/ too.
       NPM_CONFIG_IGNORE_SCRIPTS: "true"
       NPM_CONFIG_MIN_RELEASE_AGE: "7"
-      # sync-claude-config.sh reads HTTPS_PROXY to hand the proxy to Chromium.
+      # HTTPS_PROXY is also read by sync-claude-config.sh (for Chromium).
       HTTP_PROXY: &proxy_url http://proxy:3128
       HTTPS_PROXY: *proxy_url
       http_proxy: *proxy_url
@@ -81,6 +77,6 @@ services:
     volumes:
       # Named volumes are in devcontainer.json: ${devcontainerId} only resolves there.
       - ..:/workspaces/devcontainer-claude-code:cached
-      # Host PulseAudio socket for /voice (VS Code forwards no audio). Defaults to
-      # /dev/null because a missing bind source fails the start. Set in .env.
+      # Host PulseAudio socket for /voice (.env). /dev/null because a missing bind
+      # source fails the start.
       - ${VOICE_PULSE_SOCKET:-/dev/null}:/mnt/wslg/PulseServer

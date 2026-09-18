@@ -1,5 +1,5 @@
-# Outbound allowlist for squid. A leading dot matches the domain and all subdomains.
-# Baked into the proxy image: edits take effect after a rebuild.
+# squid allowlist. A leading dot also matches subdomains.
+# Baked into the proxy image: rebuild after edits.
 
 # GitHub
 .github.com
@@ -10,27 +10,27 @@ registry.npmjs.org
 pypi.org
 files.pythonhosted.org
 
-# Anthropic / Claude Code. downloads.claude.ai serves the installer and updates.
+# Anthropic / Claude Code (downloads.claude.ai serves the installer and updates).
 # Sentry/Statsig are absent: DISABLE_* in docker-compose.yml turns them off.
 .claude.ai
 api.anthropic.com
 console.anthropic.com
-# platform.claude.com and docs.claude.com (which redirects to the former).
+# platform.claude.com, docs.claude.com
 .claude.com
 
 # VS Code server and extensions
 marketplace.visualstudio.com
-# Extension VSIX bytes come from *.gallerycdn.vsassets.io.
+# Extension VSIX downloads (*.gallerycdn.vsassets.io)
 .vsassets.io
 vscode.blob.core.windows.net
 update.code.visualstudio.com
-# VS Code server payload.
+# VS Code server download
 vscode.download.prss.microsoft.com
 
 # Container registries, for image pulls from the in-container daemon
 .docker.io
 production.cloudflare.docker.com
-# Blobs come from pkg-containers.githubusercontent.com, covered above.
+# Blobs come from pkg-containers.githubusercontent.com (covered above)
 ghcr.io
 
 # Playwright browser downloads (post-create.sh)
@@ -38,13 +38,13 @@ cdn.playwright.dev
 playwright.download.prss.microsoft.com
 storage.googleapis.com
 
-# Documentation for WebFetch and the Playwright MCP server. All static, GET-only.
+# Documentation for WebFetch and the Playwright MCP server (static, GET-only)
 .github.io
 developer.mozilla.org
 docs.python.org
 .readthedocs.io
 readthedocs.org
-# www.npmjs.com is absent: it answers with a bot-check 403.
+# www.npmjs.com is absent: it answers with a bot-check 403
 docs.npmjs.com
-# Node docs, and nodejs.org/dist for `nvm install`.
+# Node docs, and nodejs.org/dist for `nvm install`
 nodejs.org

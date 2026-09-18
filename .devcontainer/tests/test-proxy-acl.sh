@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Exercise the allowlist against a live squid on throwaway networks. Needs Docker.
-# Also covers PROXY_MODE=open.
+# Exercise the ACL, in both PROXY_MODEs, against a live squid on throwaway networks.
+# Needs Docker.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -27,8 +27,8 @@ printf 'FROM alpine:3.20\nRUN apk add --no-cache curl\n' \
 docker network create --internal "$NET_ISO" >/dev/null
 docker network create "$NET_EGR" >/dev/null
 
-# start_proxy [extra docker run args...]: (re)start the proxy on both networks and
-# wait for squid to listen.
+# start_proxy [extra docker run args...]: (re)start the proxy on both networks, wait
+# for squid to listen.
 start_proxy() {
     docker rm -f "$CTR" >/dev/null 2>&1 || true
     docker run -d --name "$CTR" --network "$NET_ISO" --network-alias proxy "$@" \
@@ -55,7 +55,7 @@ report() {
 }
 
 # expect <allow|deny> <url> [extra curl args...]
-# Any docker run failure reads as `deny`; the `allow` cases run first and would catch that.
+# Any docker run failure reads as `deny`; the `allow` cases run first to catch that.
 expect() {
     local want="$1" url="$2"; shift 2
     local got
@@ -74,7 +74,7 @@ expect allow https://downloads.claude.ai/
 # Exact entries.
 expect allow https://registry.npmjs.org/
 expect allow https://pypi.org/
-# Unlisted names, even ones sharing infrastructure with a listed one.
+# Unlisted names.
 expect deny https://www.google.com/
 expect deny https://example.com/
 # A raw address must not bypass name-based filtering.

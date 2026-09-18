@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Check egress isolation on every container start. A real isolation failure is fatal
-# and blocks the editor from attaching; mere unreachability only warns.
+# Check egress isolation on every container start. An isolation failure is fatal and
+# blocks the editor from attaching; mere unreachability only warns.
 #
 #   fatal   - an unlisted host answered through the proxy (unless PROXY_MODE=open)
 #   fatal   - anything was reachable with the proxy bypassed
@@ -9,7 +9,7 @@ set -uo pipefail
 
 ALLOWED_URL=https://registry.npmjs.org/
 DENIED_URL=https://example.com/
-# GitHub's address. Needs no DNS, so this probe can only fail on routing.
+# GitHub. Needs no DNS, so this probe can only fail on routing.
 DENIED_IP_URL=https://140.82.121.6/
 
 fatals=0
@@ -28,9 +28,9 @@ else
     warn "allowed host NOT reachable through the proxy ($ALLOWED_URL, got $allowed_code) - connectivity, not isolation"
 fi
 
-# 2. An unlisted host is refused by the proxy. http_connect is the proxy's answer to
-#    CONNECT: 403 = the ACL refused it, 200 = it let it through, 000 = no proxy.
-#    Under PROXY_MODE=open the host is expected to get through.
+# 2. An unlisted host is refused by the proxy (expected through under PROXY_MODE=open).
+#    http_connect is the proxy's answer to CONNECT: 403 = ACL refused, 200 = let
+#    through, 000 = no proxy.
 denied_code="$(curl -s -o /dev/null -w '%{http_connect}' --max-time 20 "$DENIED_URL")"
 if [ "${PROXY_MODE:-allowlist}" = open ]; then
     if [ "$denied_code" = 200 ]; then
@@ -46,9 +46,8 @@ else
     warn "could not reach the proxy to test $DENIED_URL (CONNECT got $denied_code) - connectivity, not isolation"
 fi
 
-# 3. With the proxy bypassed there is no route out. --noproxy '*' ignores every
-#    proxy env var, ALL_PROXY included. Also against a literal address, so a DNS
-#    failure alone cannot make the hostname probe pass.
+# 3. No route out with the proxy bypassed (--noproxy '*' ignores every proxy env var).
+#    Also against a literal address, so a DNS failure alone cannot pass the check.
 direct() {
     local url="$1" what="$2"
     if curl --noproxy '*' -k -s -o /dev/null --max-time 10 "$url"; then

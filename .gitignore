@@ -2,5 +2,5 @@
 # Per-developer copy of .devcontainer/.env.example
 .devcontainer/.env
 
-# Repositories to work on (cloned by hand, shared with the host); see README
+# Repositories to work on, cloned by hand; see README
 repos/
