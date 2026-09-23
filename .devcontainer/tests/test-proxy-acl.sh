@@ -74,6 +74,7 @@ expect allow https://downloads.claude.ai/
 # Exact entries.
 expect allow https://registry.npmjs.org/
 expect allow https://pypi.org/
+expect allow https://mise-versions.jdx.dev/
 # Unlisted names.
 expect deny https://www.google.com/
 expect deny https://example.com/

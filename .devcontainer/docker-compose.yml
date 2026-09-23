@@ -66,6 +66,9 @@ services:
       # npm guardrails (see README, Package installs). Env vars so they apply in repos/ too.
       NPM_CONFIG_IGNORE_SCRIPTS: "true"
       NPM_CONFIG_MIN_RELEASE_AGE: "7"
+      # See README, Tool versions.
+      NPM_CONFIG_PREFIX: /home/vscode/.local
+      MISE_GLOBAL_CONFIG_FILE: /workspaces/devcontainer-claude-code/.devcontainer/mise/config.toml
       # HTTPS_PROXY is also read by sync-claude-config.sh (for Chromium).
       HTTP_PROXY: &proxy_url http://proxy:3128
       HTTPS_PROXY: *proxy_url

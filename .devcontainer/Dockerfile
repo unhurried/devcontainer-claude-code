@@ -42,6 +42,12 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Not in ~/.local: that volume would pin the binary to the first create.
+ARG MISE_VERSION=v2026.9.12
+RUN curl -fsSL https://mise.run \
+    | MISE_VERSION=${MISE_VERSION} MISE_INSTALL_PATH=/usr/local/bin/mise sh \
+    && mise --version
+
 # Prompt, and a persisted bash history (/commandhistory is a volume).
 RUN printf '%s\n' \
         'PS1="\[\033[01;34m\]\W\[\033[00m\] $ "' \
@@ -58,8 +64,8 @@ RUN mkdir -p /home/vscode/.claude \
              /home/vscode/.local/bin \
     && chown -R vscode:vscode /home/vscode /commandhistory
 
-# post-create.sh installs `claude` here.
-ENV PATH=/home/vscode/.local/bin:$PATH
+# post-create.sh installs `claude` here. Shims, not `mise activate`: see README.
+ENV PATH=/home/vscode/.local/share/mise/shims:/home/vscode/.local/bin:$PATH
 
 # Lets Claude Code detect the devcontainer.
 ENV DEVCONTAINER=true

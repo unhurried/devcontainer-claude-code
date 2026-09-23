@@ -7,6 +7,9 @@ if [ ! -x "$HOME/.local/bin/claude" ]; then
   curl -fsSL https://claude.ai/install.sh | bash
 fi
 
+# Versions: mise/config.toml.
+mise install --yes
+
 # Playwright MCP server and browser (sync-claude-config.sh registers it). ~/.npm and
 # ~/.cache/ms-playwright are volumes, so a rebuild downloads nothing.
 

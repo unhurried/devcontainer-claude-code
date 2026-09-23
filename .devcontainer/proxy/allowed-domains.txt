@@ -10,6 +10,9 @@ registry.npmjs.org
 pypi.org
 files.pythonhosted.org
 
+# mise version lists (without it mise falls back to the rate-limited GitHub API).
+mise-versions.jdx.dev
+
 # Anthropic / Claude Code (downloads.claude.ai serves the installer and updates).
 # Sentry/Statsig are absent: DISABLE_* in docker-compose.yml turns them off.
 .claude.ai
@@ -46,5 +49,5 @@ docs.python.org
 readthedocs.org
 # www.npmjs.com is absent: it answers with a bot-check 403
 docs.npmjs.com
-# Node docs, and nodejs.org/dist for `nvm install`
+# Node docs, and nodejs.org/dist for `mise install node`
 nodejs.org

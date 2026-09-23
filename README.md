@@ -7,7 +7,7 @@ Devcontainer configuration for Claude Code.
 1. Install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) for VS Code.
 2. Run `Dev Containers: Reopen in Container` from the command palette.
 
-The first build sets up Node.js, Python, Docker-in-Docker and Claude Code.
+The first build sets up mise (with Node.js and Python), Docker-in-Docker and Claude Code.
 
 ## Network isolation
 
@@ -58,7 +58,16 @@ The image build itself is fast (it runs on the host's Docker daemon with direct 
 - The mount points are created in the `Dockerfile` so the volumes are owned by `vscode`, not root.
 - Only `extensions/` of `~/.vscode-server` is persisted. VS Code writes `data/Machine/settings.json` from `customizations.vscode.settings` only when the file is absent, so persisting `data/` would pin those settings to whatever the first create wrote. `bin/` needs no volume — it is symlinks into the `vscode` volume Dev Containers manages itself — and `extensionsCache/` only duplicates `extensions/`. The cost is that `data/User/globalStorage` (per-extension state) resets on rebuild; Claude Code is unaffected, its state is in `~/.claude`.
 - That volume was renamed when it was narrowed, so existing setups keep an orphaned `claude-code-vscode-server-*`. Remove it; the next rebuild refetches the extensions once (~500 MB through squid).
-- Node and Python are pinned in `devcontainer.json`; bump deliberately. Docker-in-Docker tracks `latest` because moby's apt repo drops old versions.
+- Docker-in-Docker tracks `latest` because moby's apt repo drops old versions.
+
+## Tool versions (mise)
+
+[mise](https://mise.jdx.dev) provides Node and Python. Its shims are on `PATH`, so non-interactive shells (Claude Code's Bash tool, `postCreateCommand`) see the same versions as the terminal.
+
+- Global versions are pinned in `.devcontainer/mise/config.toml` (`MISE_GLOBAL_CONFIG_FILE`), mise itself in the `Dockerfile`; bump deliberately. Edit the file and run `mise install` — no rebuild. `mise use -g` writes to the same tracked file.
+- Per repository: a `mise.toml` or `.tool-versions` in a repo under `repos/` overrides them there. mise ignores it until you run `mise trust` in that repo.
+- Installed tools live in `~/.local/share/mise`, inside the `~/.local` volume, so a rebuild downloads nothing. Downloads come from GitHub, nodejs.org and `mise-versions.jdx.dev`; other backends may need more hosts in `allowed-domains.txt`.
+- `NPM_CONFIG_PREFIX` puts `npm install -g` into `~/.local`, so global packages (such as the Playwright MCP server) survive a Node version change.
 
 ## Package installs
 

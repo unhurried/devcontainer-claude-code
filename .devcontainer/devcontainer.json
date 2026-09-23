@@ -18,14 +18,7 @@
     "source=claude-code-vscode-extensions-${devcontainerId},target=/home/vscode/.vscode-server/extensions,type=volume",
     "source=claude-code-local-${devcontainerId},target=/home/vscode/.local,type=volume"
   ],
-  // Pinned; bump deliberately.
   "features": {
-    "ghcr.io/devcontainers/features/node:2": {
-      "version": "26.8.1"
-    },
-    "ghcr.io/devcontainers/features/python:1": {
-      "version": "3.14.7"
-    },
     // Unpinned: moby's apt repo drops old versions.
     "ghcr.io/devcontainers/features/docker-in-docker:4": {
       "version": "latest",
