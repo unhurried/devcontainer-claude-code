@@ -10,6 +10,7 @@ RUN apt-get update \
         socat \
         build-essential \
         file \
+        git-lfs \
         # SoX `rec` with the pulse backend, for /voice.
         sox \
         libsox-fmt-pulse \
@@ -40,7 +41,9 @@ RUN apt-get update \
         fonts-noto-color-emoji \
         fonts-noto-cjk \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    # The package does not register the LFS filters itself.
+    && git lfs install --system
 
 # Not in ~/.local: that volume would pin the binary to the first create.
 ARG MISE_VERSION=v2026.9.12
