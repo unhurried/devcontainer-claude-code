@@ -7,7 +7,7 @@
 #   warning - an allowed host, or the proxy itself, did not answer
 set -uo pipefail
 
-ALLOWED_URL=https://registry.npmjs.org/
+ALLOWED_URL=https://nodejs.org/dist/index.json
 DENIED_URL=https://example.com/
 # GitHub. Needs no DNS, so this probe can only fail on routing.
 DENIED_IP_URL=https://140.82.121.6/
@@ -20,7 +20,6 @@ warn()  { printf 'WARN  - %s\n' "$1" >&2; warnings=$((warnings + 1)); }
 fatal() { printf 'FATAL - %s\n' "$1" >&2; fatals=$((fatals + 1)); }
 
 # 1. An allowed host answers through the proxy.
-#    Not api.github.com: its unauthenticated rate limit would look like a failure.
 allowed_code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$ALLOWED_URL")"
 if [ "$allowed_code" = 200 ]; then
     pass "allowed host reachable through the proxy ($ALLOWED_URL)"

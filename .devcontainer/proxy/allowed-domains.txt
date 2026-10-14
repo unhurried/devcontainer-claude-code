@@ -1,24 +1,15 @@
 # squid allowlist. A leading dot also matches subdomains.
 # Baked into the proxy image: rebuild after edits.
+#
+# Only hosts that serve the vendor's own content. Hosts that serve third-party
+# uploads (GitHub, package registries, container registries, storage buckets,
+# user-hosted pages) are absent: install with PROXY_MODE=open, then run the agent
+# under this list.
 
-# GitHub
-.github.com
-.githubusercontent.com
-
-# Language package registries
-registry.npmjs.org
-pypi.org
-files.pythonhosted.org
-
-# Gradle: distribution (mise install gradle), plugin portal, and Maven Central.
+# Gradle distributions (mise install gradle)
 services.gradle.org
-plugins.gradle.org
-# The plugin portal redirects artifact downloads here.
-plugins-artifacts.gradle.org
-repo.maven.apache.org
-repo1.maven.org
 
-# mise version lists (without it mise falls back to the rate-limited GitHub API).
+# mise version lists
 mise-versions.jdx.dev
 
 # Anthropic / Claude Code (downloads.claude.ai serves the installer and updates).
@@ -29,33 +20,19 @@ console.anthropic.com
 # platform.claude.com, docs.claude.com
 .claude.com
 
-# VS Code server and extensions
-marketplace.visualstudio.com
-# Extension VSIX downloads (*.gallerycdn.vsassets.io)
-.vsassets.io
+# VS Code server
 vscode.blob.core.windows.net
 update.code.visualstudio.com
-# VS Code server download
 vscode.download.prss.microsoft.com
-
-# Container registries, for image pulls from the in-container daemon
-.docker.io
-production.cloudflare.docker.com
-# Blobs come from pkg-containers.githubusercontent.com (covered above)
-ghcr.io
 
 # Playwright browser downloads (post-create.sh)
 cdn.playwright.dev
 playwright.download.prss.microsoft.com
-storage.googleapis.com
 
 # Documentation for WebFetch and the Playwright MCP server (static, GET-only)
-.github.io
+docs.github.com
 developer.mozilla.org
 docs.python.org
-.readthedocs.io
-readthedocs.org
-# www.npmjs.com is absent: it answers with a bot-check 403
 docs.npmjs.com
 # Node docs, and nodejs.org/dist for `mise install node`
 nodejs.org

@@ -66,18 +66,21 @@ expect() {
 }
 
 # Leading-dot entries: apex and subdomains.
-expect allow https://api.github.com/zen
-expect allow https://github.com/
-expect allow https://codeload.github.com/
-expect allow https://raw.githubusercontent.com/
+expect allow https://claude.ai/
 expect allow https://downloads.claude.ai/
 # Exact entries.
-expect allow https://registry.npmjs.org/
-expect allow https://pypi.org/
+expect allow https://nodejs.org/dist/index.json
 expect allow https://mise-versions.jdx.dev/
+expect allow https://docs.github.com/
 # Unlisted names.
 expect deny https://www.google.com/
 expect deny https://example.com/
+# Hosts of third-party uploads: install-time only (PROXY_MODE=open).
+expect deny https://github.com/
+expect deny https://raw.githubusercontent.com/
+expect deny https://registry.npmjs.org/
+expect deny https://pypi.org/
+expect deny https://storage.googleapis.com/
 # A raw address must not bypass name-based filtering.
 expect deny https://140.82.121.6/ -k
 
