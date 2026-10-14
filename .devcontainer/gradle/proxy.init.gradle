@@ -1,0 +1,33 @@
+// Gradle (a JVM) ignores HTTP(S)_PROXY and NO_PROXY; map them to the JVM proxy
+// properties on every build. Read at build time, not baked into GRADLE_OPTS, because
+// Claude Code's sandbox swaps in its own proxy (localhost, with credentials).
+['http', 'https'].each { scheme ->
+    def url = System.getenv("${scheme}_proxy") ?: System.getenv("${scheme.toUpperCase()}_PROXY")
+    ['proxyHost', 'proxyPort', 'proxyUser', 'proxyPassword'].each { System.clearProperty("${scheme}.${it}") }
+    if (!url) {
+        return
+    }
+    def uri = new URI(url)
+    System.setProperty("${scheme}.proxyHost", uri.host)
+    System.setProperty("${scheme}.proxyPort", String.valueOf(uri.port == -1 ? 80 : uri.port))
+    if (uri.rawUserInfo) {
+        def (user, password) = uri.rawUserInfo.split(':', 2).toList() + ['']
+        System.setProperty("${scheme}.proxyUser", URLDecoder.decode(user, 'UTF-8'))
+        System.setProperty("${scheme}.proxyPassword", URLDecoder.decode(password, 'UTF-8'))
+    }
+}
+
+// CIDR entries become wildcards over their whole leading octets (172.16.0.0/12 -> 172.*):
+// broader than the range, which only sends a few more hosts direct.
+def noProxy = System.getenv('no_proxy') ?: System.getenv('NO_PROXY')
+if (noProxy) {
+    def hosts = noProxy.split(',')*.trim().findAll().collect { entry ->
+        def (addr, bits) = entry.split('/', 2).toList() + [null]
+        if (bits == null) {
+            return entry.startsWith('.') ? "*${entry}" : entry
+        }
+        def octets = (bits as int).intdiv(8)
+        octets == 0 ? '*' : addr.split('\\.').take(octets).join('.') + '.*'
+    }
+    System.setProperty('http.nonProxyHosts', hosts.join('|'))
+}

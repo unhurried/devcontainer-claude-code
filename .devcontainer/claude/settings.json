@@ -30,6 +30,20 @@
   },
   "sandbox": {
     "enabled": true,
+    "filesystem": {
+      "allowWrite": [
+        "~/.gradle"
+      ]
+    },
+    "network": {
+      "allowedDomains": [
+        "services.gradle.org",
+        "plugins.gradle.org",
+        "plugins-artifacts.gradle.org",
+        "repo.maven.apache.org",
+        "repo1.maven.org"
+      ]
+    },
     "credentials": {
       "files": [
         {

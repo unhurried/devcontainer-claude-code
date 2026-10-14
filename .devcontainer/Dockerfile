@@ -59,6 +59,13 @@ RUN printf '%s\n' \
     && mkdir -p /commandhistory \
     && touch /commandhistory/.bash_history
 
+# Gradle's proxy init script, symlinked so edits are live. This also creates
+# ~/.gradle: the Claude Code sandbox can grant write access to it (where Gradle
+# extracts its native libraries) only if it already exists.
+RUN mkdir -p /home/vscode/.gradle/init.d \
+    && ln -s /workspaces/devcontainer-claude-code/.devcontainer/gradle/proxy.init.gradle \
+             /home/vscode/.gradle/init.d/proxy.init.gradle
+
 # Volume mount points; ones docker creates itself are root-owned.
 RUN mkdir -p /home/vscode/.claude \
              /home/vscode/.cache/ms-playwright \

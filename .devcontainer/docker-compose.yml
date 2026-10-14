@@ -77,6 +77,7 @@ services:
       # Private ranges keep containers started by the inner docker daemon reachable.
       NO_PROXY: &no_proxy localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
       no_proxy: *no_proxy
+      # Gradle ignores these; .devcontainer/gradle/proxy.init.gradle maps them.
     volumes:
       # Named volumes are in devcontainer.json: ${devcontainerId} only resolves there.
       - ..:/workspaces/devcontainer-claude-code:cached

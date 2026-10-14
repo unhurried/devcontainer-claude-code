@@ -10,6 +10,14 @@ registry.npmjs.org
 pypi.org
 files.pythonhosted.org
 
+# Gradle: distribution (mise install gradle), plugin portal, and Maven Central.
+services.gradle.org
+plugins.gradle.org
+# The plugin portal redirects artifact downloads here.
+plugins-artifacts.gradle.org
+repo.maven.apache.org
+repo1.maven.org
+
 # mise version lists (without it mise falls back to the rate-limited GitHub API).
 mise-versions.jdx.dev
 
