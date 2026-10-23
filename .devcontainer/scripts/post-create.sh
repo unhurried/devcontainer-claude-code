@@ -27,3 +27,8 @@ npm install -g --prefer-offline "@playwright/mcp@${MCP_VERSION}"
 # OS deps are in the Dockerfile. The package's own playwright, so the browser
 # revision matches it.
 "$(npm root -g)/@playwright/mcp/node_modules/.bin/playwright" install chromium
+
+# Lets the Claude Code sandbox refuse AF_UNIX sockets (docker.sock, IDE sockets); the
+# prebuilt apply-seccomp needs no install script. Pinned for the same reason as above.
+SRT_VERSION=0.0.79
+npm install -g --prefer-offline "@anthropic-ai/sandbox-runtime@${SRT_VERSION}"
