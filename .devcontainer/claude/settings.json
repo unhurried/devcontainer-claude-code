@@ -32,7 +32,8 @@
     "enabled": true,
     "filesystem": {
       "allowWrite": [
-        "~/.gradle"
+        "~/.gradle",
+        "~/.local/share/cargo"
       ]
     },
     "network": {
@@ -41,7 +42,10 @@
         "plugins.gradle.org",
         "plugins-artifacts.gradle.org",
         "repo.maven.apache.org",
-        "repo1.maven.org"
+        "repo1.maven.org",
+        "static.rust-lang.org",
+        "index.crates.io",
+        "static.crates.io"
       ]
     },
     "credentials": {

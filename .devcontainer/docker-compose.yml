@@ -69,6 +69,10 @@ services:
       # See README, Tool versions.
       NPM_CONFIG_PREFIX: /home/vscode/.local
       MISE_GLOBAL_CONFIG_FILE: /workspaces/devcontainer-claude-code/.devcontainer/mise/config.toml
+      # rustup's toolchains and cargo's crates (a repo's mise.toml installs Rust through
+      # rustup) in the ~/.local volume instead of unpersisted ~/.rustup and ~/.cargo.
+      CARGO_HOME: /home/vscode/.local/share/cargo
+      RUSTUP_HOME: /home/vscode/.local/share/rustup
       # HTTPS_PROXY is also read by sync-claude-config.sh (for Chromium).
       HTTP_PROXY: &proxy_url http://proxy:3128
       HTTPS_PROXY: *proxy_url

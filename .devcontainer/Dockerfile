@@ -14,6 +14,17 @@ RUN apt-get update \
         # SoX `rec` with the pulse backend, for /voice.
         sox \
         libsox-fmt-pulse \
+        # Running GUI apps headless and driving them (Xvfb, xdotool, ImageMagick's
+        # import), X11 libraries that winit loads at run time, and DejaVu Sans, the
+        # fallback font of cosmic-text (iced): without it Latin text renders blank.
+        xvfb \
+        xdotool \
+        imagemagick \
+        libxkbcommon-x11-0 \
+        libxcursor1 \
+        libxi6 \
+        libx11-xcb1 \
+        fonts-dejavu-core \
         # Chromium runtime deps for the Playwright MCP server (post-create.sh installs
         # the browser; `playwright install-deps` needs npm, which arrives later).
         libnss3 \

@@ -72,6 +72,7 @@ expect allow https://downloads.claude.ai/
 expect allow https://nodejs.org/dist/index.json
 expect allow https://mise-versions.jdx.dev/
 expect allow https://docs.github.com/
+expect allow https://static.rust-lang.org/
 # Unlisted names.
 expect deny https://www.google.com/
 expect deny https://example.com/
@@ -80,6 +81,8 @@ expect deny https://github.com/
 expect deny https://raw.githubusercontent.com/
 expect deny https://registry.npmjs.org/
 expect deny https://pypi.org/
+expect deny https://index.crates.io/
+expect deny https://static.crates.io/
 expect deny https://storage.googleapis.com/
 # A raw address must not bypass name-based filtering.
 expect deny https://140.82.121.6/ -k
