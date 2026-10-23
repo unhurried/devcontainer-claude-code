@@ -10,6 +10,11 @@ fi
 # Versions: mise/config.toml.
 mise install --yes
 
+# Claude Code's sandbox grants write access to CARGO_HOME (claude/settings.json) only
+# if it exists when Claude Code starts; rustup would create it only on the first
+# `mise install` of a Rust repo.
+mkdir -p "${CARGO_HOME:?}"
+
 # Playwright MCP server and browser (sync-claude-config.sh registers it). ~/.npm and
 # ~/.cache/ms-playwright are volumes, so a rebuild downloads nothing.
 

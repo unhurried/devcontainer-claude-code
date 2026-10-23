@@ -12,6 +12,10 @@ services.gradle.org
 # mise version lists
 mise-versions.jdx.dev
 
+# Rust toolchains and rustup updates. The first rustup install (sh.rustup.rs) and
+# crates (crates.io) need PROXY_MODE=open.
+static.rust-lang.org
+
 # Anthropic / Claude Code (downloads.claude.ai serves the installer and updates).
 # Sentry/Statsig are absent: DISABLE_* in docker-compose.yml turns them off.
 .claude.ai
