@@ -50,6 +50,8 @@ Settings, skills and the Playwright MCP server are installed at **user scope** (
 - `.devcontainer/scripts/sync-claude-config.sh` runs on every container start: merges the template into `~/.claude/settings.json` (template keys win, keys Claude Code writes itself survive), symlinks the skills, registers the MCP server. Edit and restart, or run the script by hand — no rebuild.
 - A key *removed* from the template stays in `~/.claude/settings.json` until removed there by hand.
 - The template is an ordinary tracked file, so the sandbox does not protect it. Review changes to it like changes to the proxy allowlist.
+- **Unix sockets:** `post-create.sh` installs `@anthropic-ai/sandbox-runtime`, whose prebuilt `apply-seccomp` filter makes sandboxed commands fail `socket(AF_UNIX)`. Without it they could reach `/var/run/docker.sock` and, via `docker run --privileged`, the host, which has direct internet. `docker` therefore fails inside the sandbox; Claude Code retries it unsandboxed, and the `Bash(dangerouslyDisableSandbox:true)` ask rule makes that retry need your approval even in `auto` mode. Hooks, MCP servers and file tools run outside the sandbox and are not covered.
+- `sandbox.failIfUnavailable` stops Claude Code running unsandboxed when bubblewrap or socat is missing. `/sandbox` lists a Dependencies tab if the seccomp filter is not found. The template has no `Bash(...)` allow rules: inside the sandbox commands run without a prompt, and an allow rule would also approve the unsandboxed retry of that command.
 
 ## Rebuilds
 
@@ -76,7 +78,7 @@ The image build itself is fast (it runs on the host's Docker daemon with direct 
 Two npm guardrails are set container-wide in `docker-compose.yml`:
 
 - `NPM_CONFIG_IGNORE_SCRIPTS=true` — install-time lifecycle scripts do not run. Use `npm rebuild <pkg>` for native addons that need them.
-- `NPM_CONFIG_MIN_RELEASE_AGE=7` — versions published within the last week are refused, which is why `post-create.sh` pins versions instead of `@latest`.
+- `NPM_CONFIG_MIN_RELEASE_AGE=7` — versions published within the last week are refused, which is why `post-create.sh` pins versions (Playwright MCP, the sandbox runtime) instead of `@latest`.
 
 Neither touches Claude Code: it is installed by Anthropic's native installer into `~/.local` (a persisted volume), not by npm, so the auto-updater is not subject to them. Under npm it could never update — Claude Code releases daily, and `NPM_CONFIG_IGNORE_SCRIPTS` would skip the postinstall that puts the real binary in place. `claude doctor` shows the install method; `~/.claude/.last-update-result.json` the last update attempt.
 

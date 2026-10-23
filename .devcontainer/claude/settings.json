@@ -4,32 +4,18 @@
     "allow": [
       "Write",
       "Edit",
-      "Bash(git:*)",
-      "Bash(ls:*)",
-      "Bash(cat:*)",
-      "Bash(grep:*)",
-      "Bash(sed:*)",
-      "Bash(mkdir:*)",
-      "Bash(cp:*)",
-      "Bash(mv:*)",
-      "Bash(rm:*)",
-      "Bash(touch:*)",
-      "Bash(chmod:*)",
-      "Bash(diff:*)",
-      "Bash(which:*)",
-      "Bash(wc:*)",
-      "Bash(head:*)",
-      "Bash(tail:*)",
       "WebFetch(domain:docs.github.com)",
       "WebFetch(domain:docs.python.org)"
     ],
     "ask": [
       "Bash(git push:*)",
-      "Bash(sudo:*)"
+      "Bash(sudo:*)",
+      "Bash(dangerouslyDisableSandbox:true)"
     ]
   },
   "sandbox": {
     "enabled": true,
+    "failIfUnavailable": true,
     "filesystem": {
       "allowWrite": [
         "~/.gradle"
