@@ -50,12 +50,12 @@ check "compose file interpolates no \${devcontainerId}" 0 \
 dc up -d --build proxy >/dev/null
 
 # A failed probe must not look like an empty route list.
-routes="$(docker run --rm --network "$ISO_NET" alpine:3.20 ip route)" || routes="PROBE-FAILED"
+routes="$(docker run --rm --network "$ISO_NET" alpine:3.24 ip route)" || routes="PROBE-FAILED"
 check "dev network has no default route" "" \
     "$(printf '%s\n' "$routes" | grep -E '^default|PROBE-FAILED' || true)"
 
 check "proxy is reachable by alias from the dev network" reached \
-    "$(docker run --rm --network "$ISO_NET" alpine:3.20 \
+    "$(docker run --rm --network "$ISO_NET" alpine:3.24 \
         sh -c 'nc -z proxy 3128 && echo reached' 2>/dev/null || true)"
 
 check "proxy container has egress" ok \
