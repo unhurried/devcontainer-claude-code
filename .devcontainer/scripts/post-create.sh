@@ -19,7 +19,7 @@ mkdir -p "${CARGO_HOME:?}"
 # ~/.cache/ms-playwright are volumes, so a rebuild downloads nothing.
 
 # Pinned: NPM_CONFIG_MIN_RELEASE_AGE rejects `@latest` when it is under a week old.
-MCP_VERSION=0.0.79
+MCP_VERSION=0.0.83
 
 # Global so the MCP server starts without a network fetch (no npx).
 npm install -g --prefer-offline "@playwright/mcp@${MCP_VERSION}"
@@ -30,5 +30,5 @@ npm install -g --prefer-offline "@playwright/mcp@${MCP_VERSION}"
 
 # Lets the Claude Code sandbox refuse AF_UNIX sockets (docker.sock, IDE sockets); the
 # prebuilt apply-seccomp needs no install script. Pinned for the same reason as above.
-SRT_VERSION=0.0.79
+SRT_VERSION=0.0.80
 npm install -g --prefer-offline "@anthropic-ai/sandbox-runtime@${SRT_VERSION}"

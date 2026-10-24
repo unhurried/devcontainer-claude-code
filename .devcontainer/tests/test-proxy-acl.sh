@@ -21,7 +21,7 @@ cleanup
 
 docker build -q -t "$IMG_PROXY" "$PROXY_DIR" >/dev/null
 # busybox wget cannot CONNECT, so the client needs real curl.
-printf 'FROM alpine:3.20\nRUN apk add --no-cache curl\n' \
+printf 'FROM alpine:3.24\nRUN apk add --no-cache curl\n' \
     | docker build -q -t "$IMG_CLIENT" - >/dev/null
 
 docker network create --internal "$NET_ISO" >/dev/null
