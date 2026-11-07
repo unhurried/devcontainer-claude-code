@@ -42,6 +42,22 @@ Clone them under `repos/`. It is created on container start, visible to the host
 - The gitignore entry is a plain `repos/` on purpose: a `repos/*` + `!repos/.gitkeep` pair makes ripgrep (and Claude Code's search) skip the repositories.
 - VS Code's Source Control view finds them because `git.repositoryScanMaxDepth` is 2 in `devcontainer.json`.
 
+## Host directories
+
+Directories on the host (WSL side, including `/mnt/c/...`) are bind-mounted at `/workspaces/mnt/<basename>` from `HOST_MOUNTS` in `.devcontainer/.env`, then rebuild:
+
+```sh
+HOST_MOUNTS="/mnt/c/Users/me/Documents/notes:ro;/home/me/scratch"
+```
+
+- Entries are separated by `;` (paths may contain spaces). `:ro` mounts one read-only; the rest are read-write, so an agent can change and delete their files. Prefer `:ro` for anything it only needs to read.
+- `initializeCommand` runs `.devcontainer/scripts/generate-host-mounts.sh` on the host before every start. It writes the mounts to `.devcontainer/docker-compose.mounts.yml` (gitignored, never edit), which `devcontainer.json` lists after `docker-compose.yml`. An entry that is not an absolute path to an existing directory, a duplicate basename, or a basename starting with `.` fails the start with a message in the Dev Containers log. Mounts are created with `create_host_path: false`, so a path that vanishes later fails too instead of leaving an empty root-owned directory on the host.
+- They live outside this repo on purpose: under it, they would show up in its `git status`, or, gitignored, be hidden from ripgrep (and Claude Code's search) when it is started inside them, and `git clean -x` here would delete the host files.
+- Start Claude Code or Codex **inside** a mounted directory; their user-scope settings apply there as under `repos/`. In VS Code, add it with `File: Add Folder to Workspace`.
+- `/mnt/c` goes through WSL's 9p file system: expect slow searches on large trees, and no file-change events for edits made on the Windows side (VS Code's explorer may need a refresh). Files in a cloud-synced folder are uploaded as an agent writes them.
+- Docker Desktop resolves the bind source inside its own distro, where a path the script found may not exist; a daemon running natively in the WSL distro does not have this problem.
+- Test: `.devcontainer/tests/test-host-mounts.sh` (needs only the `docker compose` CLI).
+
 ## Agent settings
 
 Settings, skills, global instructions and the Playwright MCP server are installed at **user scope** (`~/.claude`, `~/.codex`, persisted volumes), so they apply under `repos/` too — project scope only applies to the directory an agent is started in.

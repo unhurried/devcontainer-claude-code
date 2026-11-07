@@ -1,6 +1,8 @@
 .claude/settings.local.json
 # Per-developer copy of .devcontainer/.env.example
 .devcontainer/.env
+# Generated from HOST_MOUNTS on every container start
+.devcontainer/docker-compose.mounts.yml
 
 # Repositories to work on, cloned by hand; see README
 repos/

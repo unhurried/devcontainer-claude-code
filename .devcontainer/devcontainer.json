@@ -1,7 +1,10 @@
 {
   "name": "devcontainer-claude-code",
   // Compose: dev sits on an internal network, only the proxy reaches the internet.
-  "dockerComposeFile": "docker-compose.yml",
+  // docker-compose.mounts.yml (gitignored) holds the HOST_MOUNTS bind mounts.
+  "dockerComposeFile": ["docker-compose.yml", "docker-compose.mounts.yml"],
+  // Runs on the host before compose reads its files. Fails the start on a bad entry.
+  "initializeCommand": "bash .devcontainer/scripts/generate-host-mounts.sh",
   "service": "dev",
   "workspaceFolder": "/workspaces/devcontainer-claude-code",
   "shutdownAction": "stopCompose",
