@@ -66,15 +66,22 @@ RUN mkdir -p /home/vscode/.gradle/init.d \
     && ln -s /workspaces/devcontainer-claude-code/.devcontainer/gradle/proxy.init.gradle \
              /home/vscode/.gradle/init.d/proxy.init.gradle
 
+# Codex settings, symlinked so edits are live. Codex layers this file above
+# ~/.codex/config.toml, like the template-wins merge done for Claude Code.
+RUN mkdir -p /etc/codex \
+    && ln -s /workspaces/devcontainer-claude-code/.devcontainer/codex/config.toml \
+             /etc/codex/managed_config.toml
+
 # Volume mount points; ones docker creates itself are root-owned.
 RUN mkdir -p /home/vscode/.claude \
+             /home/vscode/.codex \
              /home/vscode/.cache/ms-playwright \
              /home/vscode/.npm \
              /home/vscode/.vscode-server/extensions \
              /home/vscode/.local/bin \
     && chown -R vscode:vscode /home/vscode /commandhistory
 
-# post-create.sh installs `claude` here. Shims, not `mise activate`: see README.
+# post-create.sh installs `claude` and `codex` here. Shims, not `mise activate`: see README.
 ENV PATH=/home/vscode/.local/share/mise/shims:/home/vscode/.local/bin:$PATH
 
 # Lets Claude Code detect the devcontainer.

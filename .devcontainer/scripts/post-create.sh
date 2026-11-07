@@ -7,10 +7,16 @@ if [ ! -x "$HOME/.local/bin/claude" ]; then
   curl -fsSL https://claude.ai/install.sh | bash
 fi
 
+# Same for Codex: its native installer, which auto-updates from releases.openai.com.
+# The binary lives in ~/.codex/packages (a volume), linked from ~/.local/bin.
+if [ ! -x "$HOME/.local/bin/codex" ]; then
+  curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+fi
+
 # Versions: mise/config.toml.
 mise install --yes
 
-# Playwright MCP server and browser (sync-claude-config.sh registers it). ~/.npm and
+# Playwright MCP server and browser (sync-agent-config.sh registers it). ~/.npm and
 # ~/.cache/ms-playwright are volumes, so a rebuild downloads nothing.
 
 # Pinned: NPM_CONFIG_MIN_RELEASE_AGE rejects `@latest` when it is under a week old.

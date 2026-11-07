@@ -20,6 +20,15 @@ console.anthropic.com
 # platform.claude.com, docs.claude.com
 .claude.com
 
+# OpenAI / Codex (releases.openai.com serves the installer and updates).
+# Exact names: Statsig and /feedback are off in codex/config.toml.
+releases.openai.com
+# ChatGPT sign-in backend; also redirects chatgpt.com/codex/install.sh
+chatgpt.com
+auth.openai.com
+# Only with an API key instead of a ChatGPT sign-in
+api.openai.com
+
 # VS Code server
 vscode.blob.core.windows.net
 update.code.visualstudio.com
@@ -34,5 +43,8 @@ docs.github.com
 developer.mozilla.org
 docs.python.org
 docs.npmjs.com
+# Codex docs (developers.openai.com redirects to learn.chatgpt.com)
+developers.openai.com
+learn.chatgpt.com
 # Node docs, and nodejs.org/dist for `mise install node`
 nodejs.org

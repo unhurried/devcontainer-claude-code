@@ -1,0 +1,19 @@
+# Codex settings. Symlinked to /etc/codex/managed_config.toml by the Dockerfile, which
+# Codex layers above ~/.codex/config.toml: these keys win, the keys Codex writes
+# itself (trusted projects, MCP servers, notices) stay in ~/.codex/config.toml.
+
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[sandbox_workspace_write]
+# squid's allowlist is the network boundary, as for Claude Code's sandbox.
+network_access = true
+# Gradle extracts its native libraries here (see README, Tool versions).
+writable_roots = ["/home/vscode/.gradle"]
+
+# Keeps Statsig (metrics) and /feedback uploads out of the allowlist.
+[analytics]
+enabled = false
+
+[feedback]
+enabled = false

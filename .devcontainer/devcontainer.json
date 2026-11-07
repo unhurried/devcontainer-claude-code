@@ -10,6 +10,8 @@
   // resolves here. Targets must hold only regenerable state (see README, Rebuilds).
   "mounts": [
     "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
+    // Codex's config, credentials, and the binary ~/.local/bin/codex links into.
+    "source=claude-code-codex-${devcontainerId},target=/home/vscode/.codex,type=volume",
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
     "source=claude-code-playwright-${devcontainerId},target=/home/vscode/.cache/ms-playwright,type=volume",
     "source=claude-code-npm-${devcontainerId},target=/home/vscode/.npm,type=volume",
@@ -28,12 +30,13 @@
   },
   "postCreateCommand": "bash .devcontainer/scripts/post-create.sh ${containerWorkspaceFolder}",
   // Blocks the editor from attaching (waitFor) when isolation is broken.
-  "postStartCommand": "bash .devcontainer/scripts/verify-isolation.sh && bash .devcontainer/scripts/sync-claude-config.sh ${containerWorkspaceFolder}",
+  "postStartCommand": "bash .devcontainer/scripts/verify-isolation.sh && bash .devcontainer/scripts/sync-agent-config.sh ${containerWorkspaceFolder}",
   "waitFor": "postStartCommand",
   "customizations": {
     "vscode": {
       "extensions": [
-        "anthropic.claude-code"
+        "anthropic.claude-code",
+        "openai.chatgpt"
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",

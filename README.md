@@ -1,13 +1,13 @@
 # devcontainer-claude-code
 
-Devcontainer configuration for Claude Code.
+Devcontainer configuration for Claude Code and Codex.
 
 ## Usage
 
 1. Install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) for VS Code.
 2. Run `Dev Containers: Reopen in Container` from the command palette.
 
-The first build sets up mise (with Node.js and Python), Docker-in-Docker and Claude Code.
+The first build sets up mise (with Node.js and Python), Docker-in-Docker, Claude Code and Codex. Sign in to Codex with `codex login` in the VS Code terminal (VS Code forwards its `localhost:1455` callback to the host browser) or `codex login --device-auth`.
 
 ## Network isolation
 
@@ -22,7 +22,7 @@ The dev container sits on an `internal` Docker network with no route to the inte
   docker run -e HTTPS_PROXY=$P -e HTTP_PROXY=$P ...
   docker build --build-arg http_proxy=$P --build-arg https_proxy=$P ...
   ```
-- **Remaining channels:** `.claude.ai` and `.claude.com` stay because Claude Code needs them, and claude.ai also serves user-published artifacts. `PROXY_MODE=open` removes the barrier entirely, so do not leave an agent running unattended in it.
+- **Remaining channels:** `.claude.ai` and `.claude.com` stay because Claude Code needs them, and claude.ai also serves user-published artifacts. Likewise `chatgpt.com` stays for Codex's ChatGPT sign-in and serves shared conversations; it is listed without a leading dot, as are the other OpenAI hosts. `PROXY_MODE=open` removes the barrier entirely, so do not leave an agent running unattended in it.
 - `.devcontainer/scripts/verify-isolation.sh` checks the isolation on every container start and fails the start if it is broken.
 - Tests (need the in-container Docker daemon): `.devcontainer/tests/test-proxy-acl.sh`, `.devcontainer/tests/test-compose-topology.sh`.
 
@@ -30,7 +30,7 @@ Design notes:
 
 - Filtering is by hostname, so CDN IP changes cannot break it. The list is baked into the proxy image, which the dev container cannot reach, so a process inside cannot widen its own egress.
 - Isolation is structural (no default route), so root and `--privileged` nested containers are equally contained.
-- Claude Code's Sentry and Statsig telemetry are off (`DISABLE_ERROR_REPORTING`, `DISABLE_TELEMETRY` in `docker-compose.yml`); the auto-updater stays on and fetches from `downloads.claude.ai`.
+- Claude Code's Sentry and Statsig telemetry are off (`DISABLE_ERROR_REPORTING`, `DISABLE_TELEMETRY` in `docker-compose.yml`); the auto-updater stays on and fetches from `downloads.claude.ai`. Codex's Statsig metrics and `/feedback` uploads are off (`analytics`, `feedback` in `.devcontainer/codex/config.toml`); it updates from `releases.openai.com`.
 - `NO_PROXY` covers localhost and the private ranges, so nested containers are reachable by address.
 - The proxy container drops every capability squid does not need and runs with `no-new-privileges`. Plain-HTTP requests leave without `Via` or `X-Forwarded-For`.
 
@@ -42,22 +42,25 @@ Clone them under `repos/`. It is created on container start, visible to the host
 - The gitignore entry is a plain `repos/` on purpose: a `repos/*` + `!repos/.gitkeep` pair makes ripgrep (and Claude Code's search) skip the repositories.
 - VS Code's Source Control view finds them because `git.repositoryScanMaxDepth` is 2 in `devcontainer.json`.
 
-## Claude Code settings
+## Agent settings
 
-Settings, skills and the Playwright MCP server are installed at **user scope** (`~/.claude`, a persisted volume), so they apply under `repos/` too — project scope only applies to the directory Claude Code is started in.
+Settings, skills, global instructions and the Playwright MCP server are installed at **user scope** (`~/.claude`, `~/.codex`, persisted volumes), so they apply under `repos/` too — project scope only applies to the directory an agent is started in.
 
-- Source of truth: `.devcontainer/claude/settings.json` and `.devcontainer/claude/skills/<name>/`.
-- `.devcontainer/scripts/sync-claude-config.sh` runs on every container start: merges the template into `~/.claude/settings.json` (template keys win, keys Claude Code writes itself survive), symlinks the skills, registers the MCP server. Edit and restart, or run the script by hand — no rebuild.
-- A key *removed* from the template stays in `~/.claude/settings.json` until removed there by hand.
-- The template is an ordinary tracked file, so the sandbox does not protect it. Review changes to it like changes to the proxy allowlist.
+- Shared by both agents: `.devcontainer/agents/skills/<name>/` (linked into `~/.claude/skills` and `~/.agents/skills`), `.devcontainer/agents/AGENTS.md` (linked as `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`), and the MCP server definition in `.devcontainer/scripts/sync-agent-config.sh`.
+- Claude Code only: `.devcontainer/claude/settings.json`. Codex only: `.devcontainer/codex/config.toml`.
+- `.devcontainer/scripts/sync-agent-config.sh` runs on every container start: merges the Claude template into `~/.claude/settings.json` (template keys win, keys Claude Code writes itself survive), symlinks the skills and instructions, registers the MCP server with both agents. Edit and restart, or run the script by hand — no rebuild. A real file or directory already at a link target is left alone, with a warning.
+- A key *removed* from the Claude template stays in `~/.claude/settings.json` until removed there by hand.
+- The Codex template needs no merge: the `Dockerfile` symlinks it to `/etc/codex/managed_config.toml`, which Codex layers above `~/.codex/config.toml`, so its keys win and edits are live. Codex keeps writing its own keys (trusted projects, MCP servers) to `~/.codex/config.toml`.
+- Codex runs `workspace-write` with network access: commands write only to the workspace and `~/.gradle`, and squid filters their egress. Unlike Claude Code's `sandbox.credentials`, it cannot deny reads of `~/.ssh` and the like.
+- The templates are ordinary tracked files, so neither sandbox protects them. Review changes to them like changes to the proxy allowlist.
 
 ## Rebuilds
 
-The image build itself is fast (it runs on the host's Docker daemon with direct internet). Everything after it goes through squid, so the large downloads are kept in named volumes: `~/.claude`, `/commandhistory`, `~/.cache/ms-playwright`, `~/.npm`, `~/.vscode-server/extensions`, `~/.local`.
+The image build itself is fast (it runs on the host's Docker daemon with direct internet). Everything after it goes through squid, so the large downloads are kept in named volumes: `~/.claude`, `~/.codex`, `/commandhistory`, `~/.cache/ms-playwright`, `~/.npm`, `~/.vscode-server/extensions`, `~/.local`.
 
 - `docker volume ls | grep claude-code-` lists them; remove one to force that part to be fetched again.
 - The mount points are created in the `Dockerfile` so the volumes are owned by `vscode`, not root.
-- Only `extensions/` of `~/.vscode-server` is persisted. VS Code writes `data/Machine/settings.json` from `customizations.vscode.settings` only when the file is absent, so persisting `data/` would pin those settings to whatever the first create wrote. `bin/` needs no volume — it is symlinks into the `vscode` volume Dev Containers manages itself — and `extensionsCache/` only duplicates `extensions/`. The cost is that `data/User/globalStorage` (per-extension state) resets on rebuild; Claude Code is unaffected, its state is in `~/.claude`.
+- Only `extensions/` of `~/.vscode-server` is persisted. VS Code writes `data/Machine/settings.json` from `customizations.vscode.settings` only when the file is absent, so persisting `data/` would pin those settings to whatever the first create wrote. `bin/` needs no volume — it is symlinks into the `vscode` volume Dev Containers manages itself — and `extensionsCache/` only duplicates `extensions/`. The cost is that `data/User/globalStorage` (per-extension state) resets on rebuild; Claude Code and Codex are unaffected, their state is in `~/.claude` and `~/.codex`.
 - That volume was renamed when it was narrowed, so existing setups keep an orphaned `claude-code-vscode-server-*`. Remove it; the next rebuild refetches the extensions once (~500 MB through squid).
 - Docker-in-Docker tracks `latest` because moby's apt repo drops old versions.
 
@@ -78,7 +81,7 @@ Two npm guardrails are set container-wide in `docker-compose.yml`:
 - `NPM_CONFIG_IGNORE_SCRIPTS=true` — install-time lifecycle scripts do not run. Use `npm rebuild <pkg>` for native addons that need them.
 - `NPM_CONFIG_MIN_RELEASE_AGE=7` — versions published within the last week are refused, which is why `post-create.sh` pins versions instead of `@latest`.
 
-Neither touches Claude Code: it is installed by Anthropic's native installer into `~/.local` (a persisted volume), not by npm, so the auto-updater is not subject to them. Under npm it could never update — Claude Code releases daily, and `NPM_CONFIG_IGNORE_SCRIPTS` would skip the postinstall that puts the real binary in place. `claude doctor` shows the install method; `~/.claude/.last-update-result.json` the last update attempt.
+Neither touches Claude Code: it is installed by Anthropic's native installer into `~/.local` (a persisted volume), not by npm, so the auto-updater is not subject to them. Under npm it could never update — Claude Code releases daily, and `NPM_CONFIG_IGNORE_SCRIPTS` would skip the postinstall that puts the real binary in place. `claude doctor` shows the install method; `~/.claude/.last-update-result.json` the last update attempt. Codex is likewise installed by OpenAI's native installer: `~/.local/bin/codex` links into `~/.codex/packages`, which is why `~/.codex` is a volume.
 
 ## Browser automation (Playwright MCP)
 

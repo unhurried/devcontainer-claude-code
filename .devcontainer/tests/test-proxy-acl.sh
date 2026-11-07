@@ -72,9 +72,13 @@ expect allow https://downloads.claude.ai/
 expect allow https://nodejs.org/dist/index.json
 expect allow https://mise-versions.jdx.dev/
 expect allow https://docs.github.com/
+expect allow https://releases.openai.com/codex/install.sh
+expect allow https://chatgpt.com/
 # Unlisted names.
 expect deny https://www.google.com/
 expect deny https://example.com/
+# Exact entries do not cover subdomains.
+expect deny https://ab.chatgpt.com/
 # Hosts of third-party uploads: install-time only (PROXY_MODE=open).
 expect deny https://github.com/
 expect deny https://raw.githubusercontent.com/
