@@ -21,7 +21,7 @@ cleanup
 
 docker build -q -t "$IMG_PROXY" "$PROXY_DIR" >/dev/null
 # busybox wget cannot CONNECT, so the client needs real curl.
-printf 'FROM alpine:3.20\nRUN apk add --no-cache curl\n' \
+printf 'FROM alpine:3.24\nRUN apk add --no-cache curl\n' \
     | docker build -q -t "$IMG_CLIENT" - >/dev/null
 
 docker network create --internal "$NET_ISO" >/dev/null
@@ -74,6 +74,7 @@ expect allow https://mise-versions.jdx.dev/
 expect allow https://docs.github.com/
 expect allow https://releases.openai.com/codex/install.sh
 expect allow https://chatgpt.com/
+expect allow https://static.rust-lang.org/
 # Unlisted names.
 expect deny https://www.google.com/
 expect deny https://example.com/
@@ -84,6 +85,8 @@ expect deny https://github.com/
 expect deny https://raw.githubusercontent.com/
 expect deny https://registry.npmjs.org/
 expect deny https://pypi.org/
+expect deny https://index.crates.io/
+expect deny https://static.crates.io/
 expect deny https://storage.googleapis.com/
 # A raw address must not bypass name-based filtering.
 expect deny https://140.82.121.6/ -k
